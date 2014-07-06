@@ -1,0 +1,49 @@
+name:                velox
+version:             0.0.1
+synopsis:            A continuous development automaton for cabal projects.
+--description:         
+homepage:            http://github.com/aloiscochard/velox
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Alois Cochard
+maintainer:          alois.cochard@gmail.com
+category:            Development
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  default-language:  Haskell2010
+  hs-source-dirs:    src
+  ghc-options:       -fwarn-incomplete-patterns
+  exposed-modules:
+    Velox
+    Velox.Environment
+    Velox.Internal
+    Velox.Project
+    Velox.Workspace
+  build-depends:       
+      base                  >=4.7 && <5
+    , bytestring
+    , Cabal                 >=1.19 && <1.21
+    , codex                 <0.2
+    , containers
+    , directory
+    , either
+    , filepath
+    , machines
+    , machines-io
+    , machines-process
+    , process
+    , transformers
+
+executable velox
+  default-language:  Haskell2010
+  hs-source-dirs:    velox
+  main-is:           Main.hs
+  ghc-options:       -threaded -fwarn-incomplete-patterns
+  other-modules:     
+  build-depends:       
+      base
+    , Cabal               >=1.19 && <1.21
+    , either
+    , velox 
