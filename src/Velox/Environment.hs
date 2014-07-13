@@ -1,44 +1,49 @@
 module Velox.Environment where
 
 import Control.Applicative ((<$>))
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Either
-import System.Directory (canonicalizePath)
+import Data.Maybe (maybeToList)
+import Data.Traversable (traverse)
+import System.Directory (canonicalizePath, doesDirectoryExist)
 import System.FilePath ((</>))
 
-import qualified Codex.Project as CP
-
-import Velox.Project (Project(..))
+import Distribution.Sandbox.Utils (readSandboxSources)
+import Velox.Project (Project(..), findProject, findProjects)
 import Velox.Workspace (Workspace(..), findWorkspace, wsDir)
-
--- TODO Refactor `Codex` to expose a `findProjects/readProject` function wich return tuples (to avoid type wrap/unwrap here)
 
 data Env = Env { workspace :: Workspace, projects :: [Project], leader :: Maybe Project, isStandalone :: Bool }
   deriving (Eq, Show)
 
-loadEnv :: EitherT String IO Env
+data LoadError = NoAnchor | NoSandbox FilePath
+  deriving (Eq, Show)
+
+loadEnv :: IO (Either LoadError Env)
 loadEnv = do
-  (fp, ws) <- liftIO $ do
-    fp <- canonicalizePath "."
-    ws <- findWorkspace fp
-    return (fp, ws)
+  fp <- canonicalizePath "."
+  ws <- findWorkspace fp
   case ws of
     Nothing -> do
-      prj <- liftIO $ readProject fp
-      maybe (left "No cabal project or workspace found.") (right . createStandalone fp) prj
+      prjDesc <- findProject fp
+      case prjDesc of
+        Nothing      -> return $ Left NoAnchor
+        Just prjDesc -> do
+          prj <- createStandalone fp prjDesc
+          return prj
     Just ws -> do
-      (prjs, leader) <- liftIO $ do
-        prjs <- findProjects $ wsDir ws
-        prj  <- readProject fp
-        return (prjs, prj)
-      right $ Env ws prjs leader False
- where
-   createStandalone fp prj = Env (Workspace fp (fp </> ".cabal-sandbox")) [prj] (Just prj) True
-   findProjects fp = do
-     (CP.Workspace xs) <- CP.getWorkspace fp
-     return $ fromWP <$> xs
-   readProject fp = do
-     p <- CP.readWorkspaceProject fp
-     return $ fromWP <$> p
-   fromWP (CP.WorkspaceProject id p) = Project p id
+      prjs <- findProjects $ wsDir ws
+      leader <- findProject fp
+      return . Right $ Env ws (concat [maybeToList leader, prjs]) leader False
+  where
+    createStandalone :: FilePath -> Project -> IO (Either LoadError Env)
+    createStandalone fp prj = do
+      sandboxExists <- doesDirectoryExist sandboxPath
+      if not sandboxExists then
+        return . Left $ NoSandbox sandboxPath
+      else do
+        xs <- readSandboxSources sandboxPath
+        ys <- traverse findProject xs
+        return . Right $ Env (Workspace fp (sandboxPath)) (prj:(maybeToList =<< ys)) (Just prj) True
+      where
+        sandboxPath = fp </> ".cabal-sandbox"
+
+
 
