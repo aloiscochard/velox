@@ -11,22 +11,23 @@ import System.IO.Machine (IOSink, byChar, sinkIO, sourceIO, sourceHandle, printe
 import System.Posix.Signals (Handler(Catch), installHandler, sigINT)
 
 import Velox.Environment (Env)
-import Main.Command (Command(..), fromWatchEvent)
-import Main.Watch (withWatch)
+import Main.Command (Command)
+import Main.Watch (WatchEvent(..), withWatch)
 
+import qualified Main.Command as C
 
 automaton :: Env -> IO ()
 automaton env = withWatch env $ \watchEvents -> do
   commandsVar       <- newEmptyMVar
   let commandsSink  = sinkIO (putMVar commandsVar)
 
-  installHandler sigINT (Catch $ putMVar commandsVar Quit) Nothing
+  installHandler sigINT (Catch $ putMVar commandsVar C.Quit) Nothing
 
   hSetBuffering stdin NoBuffering
   hSetEcho      stdin False
   keyboardThread    <- forkIO . runT_ $ commandsSink <~ keyboardHandler <~ (sourceHandle byChar stdin)
 
-  watchThread       <- forkIO . runT_ $ commandsSink <~ auto fromWatchEvent <~ watchEvents
+  watchThread       <- forkIO . runT_ $ commandsSink <~ watchHandler <~ watchEvents
 
   taskVar           <- newEmptyMVar
   runT_ $ commandHandler taskVar <~ sourceIO (takeMVar commandsVar)
@@ -41,7 +42,7 @@ automaton env = withWatch env $ \watchEvents -> do
 
 commandHandler :: MVar ThreadId -> IOSink Command
 commandHandler taskVar = repeatedly $ await >>= \c -> case c of
-  Build prj fps -> do
+  C.Build prj fps -> do
     liftIO $ do
       tryTakeMVar taskVar >>= traverse killThread
       taskThread <- forkIO $ do
@@ -50,9 +51,9 @@ commandHandler taskVar = repeatedly $ await >>= \c -> case c of
         putStrLn "(stop)"
       putMVar taskVar taskThread
     return ()
-  Configure prj -> do
+  C.Configure prj -> do
     return ()
-  Quit          -> do
+  C.Quit          -> do
     liftIO $ putStrLn "Goodbye."
     stop
 
@@ -60,6 +61,12 @@ keyboardHandler :: Process Char Command
 keyboardHandler = repeatedly $ do
   w <- await
   case w of
-    '\EOT'  -> yield Quit
-    'q'     -> yield Quit
+    '\EOT'  -> yield C.Quit
+    'q'     -> yield C.Quit
     _       -> return ()
+
+watchHandler :: Process WatchEvent Command
+watchHandler = auto f where
+  f (WatchSource prj fp) = C.Build prj [fp]
+  f (WatchCabal  prj)    = C.Configure prj
+
