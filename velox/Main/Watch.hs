@@ -5,6 +5,7 @@ import Control.Concurrent.MVar
 import Control.Monad (filterM, join)
 import Data.Machine
 import Data.Traversable (traverse)
+import Distribution.PackageDescription (hsSourceDirs)
 import System.Directory (doesDirectoryExist)
 import System.Directory.Machine (directories, directoryWalk)
 import System.IO.Machine (IOSource, sourceIO)
@@ -13,7 +14,7 @@ import System.FilePath ((</>))
 
 import qualified Data.List as List
 
-import Velox.Project (Project, prjDir, prjSrcDirs)
+import Velox.Project (Project, prjDir, prjBuilds, buildInfo)
 import Velox.Environment (Env, projects)
 
 data WatchEvent = WatchSource Project FilePath
@@ -29,7 +30,7 @@ withWatch env f = withINotify $ \ino -> do
   traverse removeWatch ((join sourcesWatchers) ++ cabalWatchers)
   return res where
     watchSrc ino events prj = do
-      xs <- filterM doesDirectoryExist $ prjSrcDirs prj
+      xs <- filterM doesDirectoryExist $ prjBuilds prj >>= hsSourceDirs . buildInfo
       ys <- runT $ directories <~ directoryWalk <~ source xs
       traverse createWatch $ (ys ++ xs) where
         createWatch fp = watch ino fp events prj shouldBeWatched WatchSource
