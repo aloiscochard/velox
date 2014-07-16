@@ -28,27 +28,27 @@ automaton env = withWatch env $ \watchEvents -> do
 
   watchThread       <- forkIO . runT_ $ commandsSink <~ auto fromWatchEvent <~ watchEvents
 
-  buildVar          <- newEmptyMVar
-  runT_ $ commandHandler buildVar <~ sourceIO (takeMVar commandsVar)
+  taskVar           <- newEmptyMVar
+  runT_ $ commandHandler taskVar <~ sourceIO (takeMVar commandsVar)
 
   killThread watchThread
   killThread keyboardThread
 
-  buildThread       <- tryTakeMVar buildVar
-  traverse killThread buildThread
+  taskThread        <- tryTakeMVar taskVar
+  traverse killThread taskThread
 
   return ()
 
 commandHandler :: MVar ThreadId -> IOSink Command
-commandHandler buildVar = repeatedly $ await >>= \c -> case c of
+commandHandler taskVar = repeatedly $ await >>= \c -> case c of
   Build prj fps -> do
     liftIO $ do
-      tryTakeMVar buildVar >>= traverse killThread
-      buildThread <- forkIO $ do
+      tryTakeMVar taskVar >>= traverse killThread
+      taskThread <- forkIO $ do
         putStrLn "(start)"
         threadDelay $ 5 * 1000 * 1000
         putStrLn "(stop)"
-      putMVar buildVar buildThread
+      putMVar taskVar taskThread
     return ()
   Configure prj -> do
     return ()
