@@ -1,17 +1,24 @@
 module Velox.Project where
 
 import Control.Applicative ((<$>))
+import Data.Function (on)
+import Data.Map.Strict (Map)
 import Data.Maybe (maybeToList)
 import Data.Traversable (traverse)
-import Distribution.Package (Dependency, PackageName, pkgName)
+import Distribution.Package (Dependency(..), PackageName, pkgName, pkgVersion)
 import Distribution.PackageDescription
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Text (display)
 import Distribution.Verbosity (silent)
+import Distribution.Version (withinRange)
 import System.Directory (canonicalizePath, doesDirectoryExist, getDirectoryContents)
 import System.FilePath ((</>))
 
 import qualified Data.List as List
+import qualified Data.Map.Strict as Map
+
+newtype ProjectId = ProjectId FilePath
+  deriving (Eq, Ord, Show)
 
 data Project = Project { prjDir :: FilePath, prjPkgDesc :: GenericPackageDescription }
   deriving (Eq)
@@ -24,6 +31,9 @@ data Build =
   | ExecutableBuild { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildExecutable :: Executable }
   | TestSuiteBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildTestSuite :: TestSuite }
   | BenchmarkBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildBenchmark :: Benchmark }
+
+prjId :: Project -> ProjectId
+prjId = ProjectId . prjDir
 
 prjName :: Project -> PackageName
 prjName = pkgName . package . packageDescription . prjPkgDesc
@@ -45,6 +55,9 @@ prjBuilds prj = maybeToList library ++ executables ++ testSuites where
   pkgDesc = prjPkgDesc prj
   execBuildInfo = Distribution.PackageDescription.buildInfo
 
+prjDependencies :: Project -> [Dependency]
+prjDependencies prj = prjBuilds prj >>= buildDependencies
+
 findProject :: FilePath -> IO (Maybe Project)
 findProject root = do
   files <- getDirectoryContents root
@@ -63,3 +76,15 @@ findProjects root' = do
     listDirectory fp = do
       xs <- getDirectoryContents fp
       return . fmap (fp </>) $ filter (not . List.isPrefixOf ".") xs
+
+resolveReverseDeps :: [Project] -> Map ProjectId [Project]
+resolveReverseDeps prjs = List.foldl' f Map.empty prjs where
+  f xs prjA = Map.insert (prjId prjA) reverseDeps xs where
+    reverseDeps = do
+      prjB <- prjs
+      if name prjA == name prjB then []
+      else maybeToList $ fmap (const prjB) $ List.find p $ prjDependencies prjB
+    p (Dependency n vr) = n == name prjA && withinRange (version prjA) vr
+  name = pkgName . pkg
+  version = pkgVersion . pkg
+  pkg = package . packageDescription . prjPkgDesc

@@ -1,16 +1,25 @@
 module Velox.Environment where
 
 import Control.Applicative ((<$>))
+import Data.Map.Strict (Map)
 import Data.Maybe (maybeToList)
 import Data.Traversable (traverse)
 import System.Directory (canonicalizePath, doesDirectoryExist)
 import System.FilePath ((</>))
 
 import Distribution.Sandbox.Utils (findSandbox, readSandboxSources)
-import Velox.Project (Project(..), findProject, findProjects)
+import Velox.Project (Project(..), ProjectId, findProject, findProjects, resolveReverseDeps)
+
+import qualified Data.List as List
+
 import Velox.Workspace (Workspace(..), findWorkspace, wsDir)
 
-data Env = Env { workspace :: Workspace, projects :: [Project], leader :: Maybe Project, isStandalone :: Bool }
+data Env = Env
+  { workspace :: Workspace
+  , projects :: [Project]
+  , reverseDependencies :: Map ProjectId [Project]
+  , leader :: Maybe Project
+  , isStandalone :: Bool }
   deriving (Eq, Show)
 
 data LoadError = NoAnchor | NoSandbox FilePath
@@ -31,7 +40,7 @@ loadEnv = do
     Just ws -> do
       prjs <- findProjects $ wsDir ws
       leader <- findProject fp
-      return . Right $ Env ws (concat [maybeToList leader, prjs]) leader False
+      return . Right $ Env ws (concat [maybeToList leader, prjs]) (resolveReverseDeps prjs) leader False
   where
     createStandalone :: FilePath -> Project -> IO (Either LoadError Env)
     createStandalone fp prj = do
@@ -41,7 +50,8 @@ loadEnv = do
         Just p    -> do
           xs <- readSandboxSources p
           ys <- traverse findProject xs
-          return . Right $ Env (Workspace fp (p)) (prj:(maybeToList =<< ys)) (Just prj) True
+          let prjs = prj:(maybeToList =<< ys)
+          return . Right $ Env (Workspace fp p) prjs (resolveReverseDeps prjs) (Just prj) True
       where
         sandboxPath = fp </> ".cabal-sandbox"
 
