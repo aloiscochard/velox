@@ -6,7 +6,7 @@ import Data.Traversable (traverse)
 import System.Directory (canonicalizePath, doesDirectoryExist)
 import System.FilePath ((</>))
 
-import Distribution.Sandbox.Utils (readSandboxSources)
+import Distribution.Sandbox.Utils (findSandbox, readSandboxSources)
 import Velox.Project (Project(..), findProject, findProjects)
 import Velox.Workspace (Workspace(..), findWorkspace, wsDir)
 
@@ -35,13 +35,13 @@ loadEnv = do
   where
     createStandalone :: FilePath -> Project -> IO (Either LoadError Env)
     createStandalone fp prj = do
-      sandboxExists <- doesDirectoryExist sandboxPath
-      if not sandboxExists then
-        return . Left $ NoSandbox sandboxPath
-      else do
-        xs <- readSandboxSources sandboxPath
-        ys <- traverse findProject xs
-        return . Right $ Env (Workspace fp (sandboxPath)) (prj:(maybeToList =<< ys)) (Just prj) True
+      sandboxPath <- findSandbox fp
+      case sandboxPath of
+        Nothing   -> return . Left $ NoSandbox fp
+        Just p    -> do
+          xs <- readSandboxSources p
+          ys <- traverse findProject xs
+          return . Right $ Env (Workspace fp (p)) (prj:(maybeToList =<< ys)) (Just prj) True
       where
         sandboxPath = fp </> ".cabal-sandbox"
 
