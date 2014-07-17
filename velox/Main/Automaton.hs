@@ -46,6 +46,8 @@ commandHandler :: MVar ThreadId -> IOSink Command
 commandHandler taskVar = repeatedly $ await >>= \c -> case c of
   C.Build prj bldId fps -> do
     liftIO $ do
+      print prj
+      print bldId
       tryTakeMVar taskVar >>= traverse killThread
       taskThread <- forkIO $ do
         putStrLn "(start)"
