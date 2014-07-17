@@ -17,7 +17,7 @@ import System.FilePath ((</>))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
-import Velox.Build (Build(..))
+import Velox.Build (Build(..), BuildId, buildId)
 
 newtype ProjectId = ProjectId FilePath
   deriving (Eq, Ord, Show)
@@ -51,9 +51,6 @@ prjBuilds prj = maybeToList library ++ executables ++ testSuites where
   pkgDesc = prjPkgDesc prj
   execBuildInfo = Distribution.PackageDescription.buildInfo
 
-prjDependencies :: Project -> [Dependency]
-prjDependencies prj = prjBuilds prj >>= buildDependencies
-
 findProject :: FilePath -> IO (Maybe Project)
 findProject root = do
   files <- getDirectoryContents root
@@ -73,14 +70,16 @@ findProjects root' = do
       xs <- getDirectoryContents fp
       return . fmap (fp </>) $ filter (not . List.isPrefixOf ".") xs
 
-resolveReverseDeps :: [Project] -> Map ProjectId [Project]
-resolveReverseDeps prjs = List.foldl' f Map.empty prjs where
-  f xs prjA = Map.insert (prjId prjA) reverseDeps xs where
+resolveReverseDeps :: [Project] -> Map (ProjectId, BuildId) [(Project, Build)]
+resolveReverseDeps prjs = List.foldl' f Map.empty prjsWithBuilds where
+  f xs (prjA, buildA) = Map.insert (prjId prjA, buildId buildA) reverseDeps xs where
     reverseDeps = do
       prjB <- prjs
       if name prjA == name prjB then []
-      else maybeToList $ fmap (const prjB) $ List.find p $ prjDependencies prjB
+      else prjBuilds prjB >>= (\buildB -> const (prjB, buildB) <$> (List.filter p $ buildDependencies buildB))
     p (Dependency n vr) = n == name prjA && withinRange (version prjA) vr
+  prjsWithBuilds :: [(Project, Build)]
+  prjsWithBuilds = prjs >>= (\prj -> (\x -> (prj, x)) <$> prjBuilds prj)
   name = pkgName . pkg
   version = pkgVersion . pkg
   pkg = package . packageDescription . prjPkgDesc
