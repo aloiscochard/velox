@@ -44,7 +44,7 @@ automaton env = withWatch env $ \watchEvents -> do
 
 commandHandler :: MVar ThreadId -> IOSink Command
 commandHandler taskVar = repeatedly $ await >>= \c -> case c of
-  C.Build prj fps -> do
+  C.Build prj bldId fps -> do
     liftIO $ do
       tryTakeMVar taskVar >>= traverse killThread
       taskThread <- forkIO $ do
@@ -69,6 +69,6 @@ keyboardHandler = repeatedly $ do
 
 watchHandler :: Process WatchEvent Command
 watchHandler = auto f where
-  f (WatchSource prj fp) = C.Build prj [fp]
-  f (WatchCabal  prj)    = C.Configure prj
+  f (WatchSource prj bldId fp)  = C.Build prj bldId [fp]
+  f (WatchCabal  prj)           = C.Configure prj
 

@@ -17,7 +17,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
 import Distribution.Sandbox.Utils (findSandbox, readSandboxSources)
-import Velox.Build (Build, BuildId, buildId, buildKind, buildKindDisplay)
+import Velox.Build (Build, BuildId, bldId, bldKind, bldKindDisplay)
 import Velox.Project (Project(..), ProjectId, findProject, findProjects, prjBuilds, prjId, prjName, resolveReverseDeps)
 import Velox.Workspace (Workspace(..), findWorkspace, wsDir)
 
@@ -34,9 +34,9 @@ instance Show Env where
     header = concat (wsDir ws : if standalone then [" (standalone)"] else [" (workspace)"])
     projects = sortWith (fmap toUpper) $ (\prj -> concat ["\t", display . prjName $ prj, prjReverseDeps prj]) <$> prjs
     prjReverseDeps prj = format reverseDepsDisplay where
-      reverseDepsDisplay = List.nub $ List.sort $ fmap (\(prjName, builds) -> concat [prjName, format $ List.nub $ (buildKindDisplay . buildKind)<$> builds]) $ Map.toList $ groupByKey xs where
+      reverseDepsDisplay = List.nub $ List.sort $ fmap (\(prjName, blds) -> concat [prjName, format $ List.nub $ (bldKindDisplay . bldKind)<$> blds]) $ Map.toList $ groupByKey xs where
         xs :: [(String, Build)]
-        xs = prjBuilds prj >>= (\build -> fmap (\(x, y) -> (display $ prjName x, y)) $ join $ maybeToList $ Map.lookup (prjId prj, buildId build) reverseDeps)
+        xs = prjBuilds prj >>= (\bld -> fmap (\(x, y) -> (display $ prjName x, y)) $ join $ maybeToList $ Map.lookup (prjId prj, bldId bld) reverseDeps)
       groupByKey :: Ord a => [(a, b)] -> Map a [b]
       groupByKey xs = Map.map (fmap snd) $ groupBy fst xs
       groupBy :: Ord b => (a -> b) -> [a] -> Map b [a]

@@ -12,25 +12,25 @@ data BuildId = BuildId BuildKind Int
 data BuildKind = Library | Executable | TestSuite | Benchmark
   deriving (Eq, Ord, Show)
 
-buildKindDisplay :: BuildKind -> String
-buildKindDisplay Library    = "lib"
-buildKindDisplay Executable = "exe"
-buildKindDisplay TestSuite  = "test"
-buildKindDisplay Benchmark  = "bench"
+bldKindDisplay :: BuildKind -> String
+bldKindDisplay Library    = "lib"
+bldKindDisplay Executable = "exe"
+bldKindDisplay TestSuite  = "test"
+bldKindDisplay Benchmark  = "bench"
 
 data Build =
-    LibraryBuild    { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildLibrary :: PD.Library }
-  | ExecutableBuild { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildExecutable :: PD.Executable }
-  | TestSuiteBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildTestSuite :: PD.TestSuite }
-  | BenchmarkBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildBenchmark :: PD.Benchmark }
+    LibraryBuild    { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldLibrary :: PD.Library }
+  | ExecutableBuild { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldExecutable :: PD.Executable }
+  | TestSuiteBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldTestSuite :: PD.TestSuite }
+  | BenchmarkBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldBenchmark :: PD.Benchmark }
 
-instance Show Build where show = show . buildId
+instance Show Build where show = show . bldId
 
-buildId :: Build -> BuildId
-buildId x = BuildId (buildKind x) $ hash . hsSourceDirs . buildInfo $ x
+bldId :: Build -> BuildId
+bldId x = BuildId (bldKind x) $ hash . hsSourceDirs . bldInfo $ x
 
-buildKind :: Build -> BuildKind
-buildKind (LibraryBuild _ _ _) = Library
-buildKind (ExecutableBuild _ _ _) = Executable
-buildKind (TestSuiteBuild _ _ _) = TestSuite
-buildKind (BenchmarkBuild _ _ _) = Benchmark
+bldKind :: Build -> BuildKind
+bldKind (LibraryBuild _ _ _) = Library
+bldKind (ExecutableBuild _ _ _) = Executable
+bldKind (TestSuiteBuild _ _ _) = TestSuite
+bldKind (BenchmarkBuild _ _ _) = Benchmark

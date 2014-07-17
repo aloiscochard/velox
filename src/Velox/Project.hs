@@ -1,5 +1,6 @@
 module Velox.Project where
 
+import Control.Arrow ((&&&))
 import Control.Applicative ((<$>))
 import Data.Function (on)
 import Data.Map.Strict (Map)
@@ -17,7 +18,7 @@ import System.FilePath ((</>))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
-import Velox.Build (Build(..), BuildId, buildId)
+import Velox.Build (Build(..), BuildId, bldId)
 
 newtype ProjectId = ProjectId FilePath
   deriving (Eq, Ord, Show)
@@ -43,13 +44,15 @@ prjBuilds prj = maybeToList library ++ executables ++ testSuites where
   library = f <$> condLibrary pkgDesc where
     f x = LibraryBuild (libBuildInfo (condTreeData x)) (condTreeConstraints x) (condTreeData x)
   executables = f . snd <$> condExecutables pkgDesc where
-    f x = ExecutableBuild (execBuildInfo (condTreeData x)) (condTreeConstraints x) (condTreeData x)
+    f x = ExecutableBuild (buildInfo (condTreeData x)) (condTreeConstraints x) (condTreeData x)
   testSuites = f . snd <$> condTestSuites pkgDesc where
     f x = TestSuiteBuild (testBuildInfo (condTreeData x)) (condTreeConstraints x) (condTreeData x)
   benchmarks = f . snd <$> condBenchmarks pkgDesc where
     f x = BenchmarkBuild (benchmarkBuildInfo (condTreeData x)) (condTreeConstraints x) (condTreeData x)
   pkgDesc = prjPkgDesc prj
-  execBuildInfo = Distribution.PackageDescription.buildInfo
+
+prjSourceDirs :: Project -> Map BuildId [FilePath]
+prjSourceDirs prj = Map.fromListWith (++) $ fmap (\x -> (bldId x, hsSourceDirs $ bldInfo x)) $ prjBuilds prj
 
 findProject :: FilePath -> IO (Maybe Project)
 findProject root = do
@@ -72,11 +75,11 @@ findProjects root' = do
 
 resolveReverseDeps :: [Project] -> Map (ProjectId, BuildId) [(Project, Build)]
 resolveReverseDeps prjs = List.foldl' f Map.empty prjsWithBuilds where
-  f xs (prjA, buildA) = Map.insert (prjId prjA, buildId buildA) reverseDeps xs where
+  f xs (prjA, buildA) = Map.insert (prjId prjA, bldId buildA) reverseDeps xs where
     reverseDeps = do
       prjB <- prjs
       if name prjA == name prjB then []
-      else prjBuilds prjB >>= (\buildB -> const (prjB, buildB) <$> (List.filter p $ buildDependencies buildB))
+      else prjBuilds prjB >>= (\buildB -> const (prjB, buildB) <$> (List.filter p $ bldDependencies buildB))
     p (Dependency n vr) = n == name prjA && withinRange (version prjA) vr
   prjsWithBuilds :: [(Project, Build)]
   prjsWithBuilds = prjs >>= (\prj -> (\x -> (prj, x)) <$> prjBuilds prj)

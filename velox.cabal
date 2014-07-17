@@ -51,6 +51,7 @@ executable velox
       base
     , async               >= 2.0        && < 2.1
     , bytestring
+    , containers
     , Cabal
     , directory
     , either
