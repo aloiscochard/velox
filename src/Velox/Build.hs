@@ -12,6 +12,12 @@ data BuildId = BuildId BuildKind Int
 data BuildKind = Library | Executable | TestSuite | Benchmark
   deriving (Eq, Ord, Show)
 
+buildKindDisplay :: BuildKind -> String
+buildKindDisplay Library    = "lib"
+buildKindDisplay Executable = "exe"
+buildKindDisplay TestSuite  = "test"
+buildKindDisplay Benchmark  = "bench"
+
 data Build =
     LibraryBuild    { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildLibrary :: PD.Library }
   | ExecutableBuild { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildExecutable :: PD.Executable }

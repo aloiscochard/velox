@@ -29,6 +29,9 @@ automaton env = withWatch env $ \watchEvents -> do
 
   watchThread       <- forkIO . runT_ $ commandsSink <~ watchHandler <~ watchEvents
 
+  putStrLn ""
+  print env
+
   taskVar           <- newEmptyMVar
   runT_ $ commandHandler taskVar <~ sourceIO (takeMVar commandsVar)
 
