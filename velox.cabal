@@ -31,6 +31,7 @@ library
     , directory           >= 1.2.0.1    && < 1.3
     , either              >= 4.3.0.1    && < 4.4
     , filepath            >= 1.3.0.1    && < 1.4
+    , hashable            >= 1.1.2.5    && < 1.3
     , machines
     , machines-io
     , machines-process

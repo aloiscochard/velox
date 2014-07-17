@@ -1,9 +1,13 @@
 module Velox.Build where
 
+import Data.Hashable (hash)
 import Distribution.Package (Dependency(..), PackageName, pkgName, pkgVersion)
 import Distribution.PackageDescription (Benchmark, BuildInfo, Executable, Library, TestSuite, hsSourceDirs)
 
-newtype BuildId = BuildId [FilePath]
+data BuildId = BuildId BuildKind Int
+  deriving (Eq, Ord, Show)
+
+data BuildKind = Lib | Exe | Test | Bench
   deriving (Eq, Ord, Show)
 
 data Build =
@@ -12,5 +16,13 @@ data Build =
   | TestSuiteBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildTestSuite :: TestSuite }
   | BenchmarkBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildBenchmark :: Benchmark }
 
+instance Show Build where show = show . buildId
+
 buildId :: Build -> BuildId
-buildId = BuildId . hsSourceDirs . buildInfo
+buildId x = BuildId (buildKind x) $ hash . hsSourceDirs . buildInfo $ x
+
+buildKind :: Build -> BuildKind
+buildKind (LibraryBuild _ _ _) = Lib
+buildKind (ExecutableBuild _ _ _) = Exe
+buildKind (TestSuiteBuild _ _ _) = Test
+buildKind (BenchmarkBuild _ _ _) = Bench
