@@ -28,7 +28,7 @@ withWatch env f = withINotify $ \ino -> do
   sourcesWatchers   <- traverse (watchSrc ino events) prjs
   cabalWatchers     <- traverse (watchCabal ino events) prjs
   res <- f $ sourceIO $ takeMVar events
-  traverse removeWatch ((join sourcesWatchers) ++ cabalWatchers)
+  traverse removeWatch $ List.nub $ (join sourcesWatchers) ++ cabalWatchers
   return res where
     watchSrc ino events prj = do
       xs <- filterM doesDirectoryExist $ prjBuilds prj >>= hsSourceDirs . buildInfo
