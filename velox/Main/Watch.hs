@@ -14,7 +14,8 @@ import System.FilePath ((</>))
 
 import qualified Data.List as List
 
-import Velox.Project (Project, prjDir, prjBuilds, buildInfo)
+import Velox.Build (buildInfo)
+import Velox.Project (Project, prjDir, prjBuilds)
 import Velox.Environment (Env, projects)
 
 data WatchEvent = WatchSource Project FilePath

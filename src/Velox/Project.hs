@@ -17,6 +17,8 @@ import System.FilePath ((</>))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
+import Velox.Build (Build(..))
+
 newtype ProjectId = ProjectId FilePath
   deriving (Eq, Ord, Show)
 
@@ -25,12 +27,6 @@ data Project = Project { prjDir :: FilePath, prjPkgDesc :: GenericPackageDescrip
 
 instance Show Project where
   show = display . package . packageDescription . prjPkgDesc
-
-data Build =
-    LibraryBuild    { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildLibrary :: Library }
-  | ExecutableBuild { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildExecutable :: Executable }
-  | TestSuiteBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildTestSuite :: TestSuite }
-  | BenchmarkBuild  { buildInfo :: BuildInfo, buildDependencies :: [Dependency], buildBenchmark :: Benchmark }
 
 prjId :: Project -> ProjectId
 prjId = ProjectId . prjDir
