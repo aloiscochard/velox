@@ -54,7 +54,7 @@ commandHandler taskVar = repeatedly $ await >>= \c -> case c of
   C.Configure prj -> do
     return ()
   C.Quit          -> do
-    liftIO $ putStrLn "Goodbye."
+    liftIO $ putStrLn "So long, and thanks for all the fish."
     stop
 
 keyboardHandler :: Process Char Command
