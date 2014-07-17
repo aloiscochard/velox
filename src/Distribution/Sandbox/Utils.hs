@@ -14,7 +14,7 @@ findSandbox prjDir = do
   if fileExists then readSandboxDir else return Nothing where
     readSandboxDir = do
       fileContent <- readFile configFile
-      return $ trim <$> (L.find (L.isPrefixOf "prefix:") $ trim <$> lines fileContent)
+      return $ (trim . L.drop 7) <$> (L.find (L.isPrefixOf "prefix:") $ trim <$> lines fileContent)
     configFile = prjDir </> "cabal.sandbox.config"
     prefix = "prefix:"
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
