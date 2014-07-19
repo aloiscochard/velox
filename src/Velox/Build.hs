@@ -29,8 +29,7 @@ data Build =
   | ExecutableBuild { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldExecutable :: PD.Executable }
   | TestSuiteBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldTestSuite :: PD.TestSuite }
   | BenchmarkBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldBenchmark :: PD.Benchmark }
-
-instance Show Build where show = show . bldId
+  deriving (Show)
 
 bldId :: Build -> BuildId
 bldId x = BuildId (bldKind x) $ hash . hsSourceDirs . bldInfo $ x

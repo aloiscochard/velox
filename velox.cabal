@@ -37,7 +37,8 @@ library
     , machines-io
     , machines-process
     , process             >= 1.1.0.2    && < 1.3
-    , transformers        >= 0.3.0.0    && < 0.5
+    , safe                >= 0.3        && < 0.4
+    , transformers        >= 0.3        && < 0.5
 
 executable velox
   default-language:  Haskell2010

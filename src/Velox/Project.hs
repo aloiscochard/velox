@@ -12,6 +12,7 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Text (display)
 import Distribution.Verbosity (silent)
 import Distribution.Version (withinRange)
+import Safe (headMay)
 import System.Directory (canonicalizePath, doesDirectoryExist, getDirectoryContents)
 import System.FilePath ((</>))
 
@@ -53,6 +54,15 @@ prjBuilds prj = maybeToList library ++ executables ++ testSuites where
 
 prjSourceDirs :: Project -> Map BuildId [FilePath]
 prjSourceDirs prj = Map.fromListWith (++) $ fmap (\x -> (bldId x, (prjDir prj </>) <$> (hsSourceDirs $ bldInfo x))) $ prjBuilds prj
+
+prjSourceModuleFiles :: Project -> Map BuildId [FilePath]
+prjSourceModuleFiles prj = Map.fromListWith (++) $ fmap (\x -> (bldId x, (prjDir prj </>) <$> f x)) $ prjBuilds prj where
+  f (ExecutableBuild i _ e) = [prefix $ modulePath e] where
+    prefix = case headMay $ hsSourceDirs i of
+      Just p  -> (p </>)
+      Nothing -> id
+  f _                       = []
+
 
 findProject :: FilePath -> IO (Maybe Project)
 findProject root = do
