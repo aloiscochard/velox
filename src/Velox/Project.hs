@@ -52,7 +52,7 @@ prjBuilds prj = maybeToList library ++ executables ++ testSuites where
   pkgDesc = prjPkgDesc prj
 
 prjSourceDirs :: Project -> Map BuildId [FilePath]
-prjSourceDirs prj = Map.fromListWith (++) $ fmap (\x -> (bldId x, hsSourceDirs $ bldInfo x)) $ prjBuilds prj
+prjSourceDirs prj = Map.fromListWith (++) $ fmap (\x -> (bldId x, (prjDir prj </>) <$> (hsSourceDirs $ bldInfo x))) $ prjBuilds prj
 
 findProject :: FilePath -> IO (Maybe Project)
 findProject root = do

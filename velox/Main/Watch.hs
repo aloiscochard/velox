@@ -7,7 +7,7 @@ import Control.Monad (filterM, join)
 import Data.Machine
 import Data.Traversable (traverse)
 import Distribution.PackageDescription (hsSourceDirs)
-import System.Directory (doesDirectoryExist)
+import System.Directory (canonicalizePath, doesDirectoryExist)
 import System.Directory.Machine (directories, directoryWalk)
 import System.IO.Machine (IOSource, sourceIO)
 import System.INotify
@@ -33,13 +33,15 @@ withWatch env f = withINotify $ \ino -> do
   traverse removeWatch $ L.nub $ (join sourcesWatchers) ++ cabalWatchers
   return res where
     watchSrc ino events prj = do
-      xs <- traverse createBuildWatches $ M.toList srcDirs
-      return $ join xs where
-        createBuildWatches (bldId, fps) = do
+      xs <- M.traverseWithKey createBuildWatches $ prjSourceDirs prj
+      return $ join $ M.elems xs where
+        createBuildWatches bldId fps = do
           xs <- filterM doesDirectoryExist fps
-          ys <- runT $ directories <~ directoryWalk <~ source xs
+          ys <- traverse canonicalizePath xs
+          zs <- runT $ directories <~ directoryWalk <~ source ys
           traverse createWatch $ (ys ++ xs) where
-            createWatch fp = watch ino fp events prj shouldBeWatched (\prj fp -> WatchSource prj bldId fp)
+            createWatch fp =  do
+              watch ino fp events prj shouldBeWatched (\prj fp -> WatchSource prj bldId fp)
     watchCabal ino events prj =
       watch ino (prjDir prj) events prj (\p -> shouldBeWatched p && L.isSuffixOf ".cabal" p) (\prj fp -> WatchCabal prj)
     watch ino fp events prj p f = addWatch ino varieties fp g where
@@ -47,7 +49,6 @@ withWatch env f = withINotify $ \ino -> do
         Just fp'  -> if p fp' then putMVar events $ f prj (fp </> fp') else return ()
         _         -> return ()
     varieties = [Modify, Move, Create, Delete]
-    srcDirs = L.foldl' M.union M.empty $ prjSourceDirs <$> prjs
     prjs = projects env
 
 
