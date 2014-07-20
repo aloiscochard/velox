@@ -59,7 +59,10 @@ commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of
   C.Build artifactId' fps -> do
     liftIO $ do
       job <- updateJob
-      threadId <- forkIO $ runJob ds job
+      threadId <- forkIO $ do
+        runJob ds job
+        tryTakeMVar jobHandleVar
+        return ()
       putMVar jobHandleVar (threadId, job)
     return () where
       updateJob = do
