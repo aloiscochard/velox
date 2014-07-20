@@ -1,6 +1,7 @@
 module Velox.Build where
 
 import Data.Binary (encode)
+import Data.Function (on)
 import Data.Hashable (hash)
 import Distribution.Package (Dependency(..), PackageName, pkgName, pkgVersion)
 import Distribution.PackageDescription (BuildInfo, hsSourceDirs)
@@ -14,6 +15,7 @@ data BuildId = BuildId BuildKind Int
 
 instance Show BuildId where
   show (BuildId k i) = concat [show k, "-",  concat . map (flip showHex "") . B.unpack $ encode i]
+
 
 data BuildKind = Library | Executable | TestSuite | Benchmark
   deriving (Eq, Ord)
@@ -30,6 +32,12 @@ data Build =
   | TestSuiteBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldTestSuite :: PD.TestSuite }
   | BenchmarkBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldBenchmark :: PD.Benchmark }
   deriving (Show)
+
+instance Eq Build where
+  (==) = (==) `on` bldId
+
+instance Ord Build where
+  compare = compare `on` bldId
 
 bldId :: Build -> BuildId
 bldId x = BuildId (bldKind x) $ hash . hsSourceDirs . bldInfo $ x

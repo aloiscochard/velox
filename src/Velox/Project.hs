@@ -30,6 +30,9 @@ data Project = Project { prjDir :: FilePath, prjPkgDesc :: GenericPackageDescrip
 instance Show Project where
   show = display . package . packageDescription . prjPkgDesc
 
+instance Ord Project where
+  compare = compare `on` prjId
+
 prjId :: Project -> ProjectId
 prjId = ProjectId . prjDir
 

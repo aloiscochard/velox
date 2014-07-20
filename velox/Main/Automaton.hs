@@ -1,20 +1,32 @@
 {-# LANGUAGE Rank2Types #-}
 module Main.Automaton where
 
-import Control.Concurrent (ThreadId, forkIO, killThread, threadDelay)
+import Control.Applicative
+import Control.Monad
+import Control.Concurrent (ThreadId, forkIO, killThread)
 import Control.Concurrent.MVar
 import Control.Monad.IO.Class (liftIO)
+import Data.Maybe (maybeToList)
 import Data.Machine
 import Data.Traversable (traverse)
 import System.IO (BufferMode(NoBuffering), hSetBuffering, hSetEcho, stdin)
 import System.IO.Machine (IOSink, byChar, sinkIO, sourceIO, sourceHandle, printer)
 import System.Posix.Signals (Handler(Catch), installHandler, sigINT)
 
+import qualified Data.List as L
+import qualified Data.Map.Strict as M
+
+
+import Velox.Build (bldId)
+import Velox.Project (prjBuilds)
 import Velox.Environment (Env)
+import Velox.Task (Task(..), taskActions, runTask)
 import Main.Command (Command)
 import Main.Watch (WatchEvent(..), withWatch)
 
 import qualified Main.Command as C
+
+type TaskHandle = (ThreadId, Task)
 
 automaton :: Env -> IO ()
 automaton env = withWatch env $ \watchEvents -> do
@@ -25,36 +37,38 @@ automaton env = withWatch env $ \watchEvents -> do
 
   hSetBuffering stdin NoBuffering
   hSetEcho      stdin False
-  keyboardThread    <- forkIO . runT_ $ commandsSink <~ keyboardHandler <~ (sourceHandle byChar stdin)
 
+  keyboardThread    <- forkIO . runT_ $ commandsSink <~ keyboardHandler <~ (sourceHandle byChar stdin)
   watchThread       <- forkIO . runT_ $ commandsSink <~ watchHandler <~ watchEvents
 
   print env
 
-  taskVar           <- newEmptyMVar
-  runT_ $ commandHandler taskVar <~ sourceIO (takeMVar commandsVar)
+  taskHandleVar     <- newEmptyMVar
+  runT_ $ commandHandler taskHandleVar <~ sourceIO (takeMVar commandsVar)
 
   killThread watchThread
   killThread keyboardThread
 
-  taskThread        <- tryTakeMVar taskVar
-  traverse killThread taskThread
+  taskHandle        <- tryTakeMVar taskHandleVar
+  traverse (killThread . fst) taskHandle
 
   return ()
 
-commandHandler :: MVar ThreadId -> IOSink Command
-commandHandler taskVar = repeatedly $ await >>= \c -> case c of
-  C.Build prj bldId fps -> do
+
+commandHandler :: MVar TaskHandle -> IOSink Command
+commandHandler taskHandleVar = repeatedly $ await >>= \c -> case c of
+  C.Build prj bldId' fps -> do
     liftIO $ do
-      print prj
-      print bldId
-      tryTakeMVar taskVar >>= traverse killThread
-      taskThread <- forkIO $ do
-        putStrLn "(start)"
-        threadDelay $ 5 * 1000 * 1000
-        putStrLn "(stop)"
-      putMVar taskVar taskThread
-    return ()
+      task <- updateTask
+      threadId <- forkIO $ runTask task
+      putMVar taskHandleVar (threadId, task)
+    return () where
+      updateTask = do
+        handle <- tryTakeMVar taskHandleVar
+        traverse (killThread . fst) handle
+        let bld = L.find (\x -> bldId' == bldId x) $ prjBuilds prj
+        let actions = M.unionWith (\xs ys -> L.nub $ xs ++ ys) (M.fromList ((\x -> ((prj, x), fps)) <$> maybeToList bld)) (maybe M.empty (taskActions . snd) handle)
+        return $ Task $ actions where
   C.Configure prj -> do
     return ()
   C.Quit          -> do
