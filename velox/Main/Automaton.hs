@@ -18,8 +18,9 @@ import qualified Data.Map.Strict as M
 
 import Velox.Artifact (Artifact(..), artifactId)
 import Velox.Build (bldId)
+import Velox.Dependencies (Dependencies)
 import Velox.Project (prjBuilds)
-import Velox.Environment (Env)
+import Velox.Environment (Env, dependencies)
 import Velox.Job (Job(..), jobTasks, runJob)
 import Main.Command (Command)
 import Main.Watch (WatchEvent(..), withWatch)
@@ -42,7 +43,7 @@ automaton env = withWatch env $ \watchEvents -> do
   watchThread       <- forkIO . runT_ $ commandsSink <~ watchHandler <~ watchEvents
 
   jobHandleVar     <- newEmptyMVar
-  runT_ $ commandHandler jobHandleVar <~ sourceIO (takeMVar commandsVar)
+  runT_ $ commandHandler (dependencies env) jobHandleVar <~ sourceIO (takeMVar commandsVar)
 
   killThread watchThread
   killThread keyboardThread
@@ -53,12 +54,12 @@ automaton env = withWatch env $ \watchEvents -> do
   return ()
 
 
-commandHandler :: MVar JobHandle -> IOSink Command
-commandHandler jobHandleVar = repeatedly $ await >>= \c -> case c of
+commandHandler :: Dependencies -> MVar JobHandle -> IOSink Command
+commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of
   C.Build artifactId' fps -> do
     liftIO $ do
       job <- updateJob
-      threadId <- forkIO $ runJob job
+      threadId <- forkIO $ runJob ds job
       putMVar jobHandleVar (threadId, job)
     return () where
       updateJob = do
