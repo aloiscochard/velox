@@ -16,13 +16,14 @@ import System.FilePath ((</>), dropFileName, takeFileName)
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
 
-import Velox.Build (Build, BuildId, bldId, bldInfo)
-import Velox.Project (Project, prjDir, prjBuilds, prjSourceDirs, prjSourceModuleFiles)
+import Velox.Artifact (ArtifactId(..))
+import Velox.Build (bldId, bldInfo)
+import Velox.Project (ProjectId, prjId, prjDir, prjBuilds, prjSourceDirs, prjSourceModuleFiles)
 import Velox.Environment (Env, projects)
 
-data WatchEvent = WatchSource Project BuildId FilePath
-                | WatchCabal Project
-                deriving (Eq, Show)
+data WatchEvent = WatchSource ArtifactId FilePath
+                | WatchCabal  ProjectId
+                deriving (Eq)
 
 withWatch :: Env -> (IOSource WatchEvent -> IO a) -> IO a
 withWatch env f = withINotify $ \ino -> do
@@ -42,7 +43,7 @@ withWatch env f = withINotify $ \ino -> do
           fileWatches <- traverse (\fp -> createWatch (== takeFileName fp) $ dropFileName fp) files
           return (dirWatches ++ fileWatches) where
             createWatch p fp =  do
-              watch ino fp events prj p (\prj fp -> WatchSource prj bldId' fp)
+              watch ino fp events prj p (\prjId' fp -> WatchSource (ArtifactId prjId' bldId') fp)
             canonicalize = traverse canonicalizePath
             normalizeDirs xs = filterM doesDirectoryExist xs >>= canonicalize
             normalizeFiles xs = filterM doesFileExist xs >>= canonicalize
@@ -55,10 +56,10 @@ withWatch env f = withINotify $ \ino -> do
               return $ filter (\p -> not $ any (flip L.isPrefixOf p) srcDirs) moduleFiles
 
     watchCabal ino events prj =
-      watch ino (prjDir prj) events prj (\p -> shouldBeWatched p && L.isSuffixOf ".cabal" p) (\prj fp -> WatchCabal prj)
+      watch ino (prjDir prj) events prj (\p -> shouldBeWatched p && L.isSuffixOf ".cabal" p) (\prjId' _ -> WatchCabal prjId')
     watch ino fp events prj p f = addWatch ino varieties fp g where
       g e = case maybeFilePath e of
-        Just fp'  -> if p fp' then putMVar events $ f prj (fp </> fp') else return ()
+        Just fp'  -> if p fp' then putMVar events $ f (prjId prj) (fp </> fp') else return ()
         _         -> return ()
     varieties = [Modify, Move, Create, Delete]
     prjs = projects env

@@ -18,7 +18,9 @@ library
   exposed-modules:
     Distribution.Sandbox.Utils
     Velox
+    Velox.Artifact
     Velox.Build
+    Velox.Dependencies
     Velox.Environment
     Velox.Internal
     Velox.Project

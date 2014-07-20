@@ -7,16 +7,12 @@ import System.FilePath
 
 import qualified Data.Map.Strict as M
 
-import Velox.Build
-import Velox.Environment
-import Velox.Project
+import Velox.Artifact (ArtifactId)
 
 -- TODO REMOVE
 import Control.Concurrent (threadDelay)
 
-data Task = Task { taskActions :: Map (Project, Build) [FilePath] }
-
-type Node = (Project, Build)
+data Task = Task { taskActions :: Map ArtifactId [FilePath] }
 
 runTask :: Task -> IO ()
 runTask (Task actions) = do

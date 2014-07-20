@@ -31,13 +31,6 @@ data Build =
   | ExecutableBuild { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldExecutable :: PD.Executable }
   | TestSuiteBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldTestSuite :: PD.TestSuite }
   | BenchmarkBuild  { bldInfo :: BuildInfo, bldDependencies :: [Dependency], bldBenchmark :: PD.Benchmark }
-  deriving (Show)
-
-instance Eq Build where
-  (==) = (==) `on` bldId
-
-instance Ord Build where
-  compare = compare `on` bldId
 
 bldId :: Build -> BuildId
 bldId x = BuildId (bldKind x) $ hash . hsSourceDirs . bldInfo $ x

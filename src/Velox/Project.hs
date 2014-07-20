@@ -11,7 +11,6 @@ import Distribution.PackageDescription
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Text (display)
 import Distribution.Verbosity (silent)
-import Distribution.Version (withinRange)
 import Safe (headMay)
 import System.Directory (canonicalizePath, doesDirectoryExist, getDirectoryContents)
 import System.FilePath ((</>))
@@ -26,12 +25,6 @@ newtype ProjectId = ProjectId FilePath
 
 data Project = Project { prjDir :: FilePath, prjPkgDesc :: GenericPackageDescription }
   deriving (Eq)
-
-instance Show Project where
-  show = display . package . packageDescription . prjPkgDesc
-
-instance Ord Project where
-  compare = compare `on` prjId
 
 prjId :: Project -> ProjectId
 prjId = ProjectId . prjDir
@@ -85,17 +78,3 @@ findProjects root' = do
     listDirectory fp = do
       xs <- getDirectoryContents fp
       return . fmap (fp </>) $ filter (not . List.isPrefixOf ".") xs
-
-resolveReverseDeps :: [Project] -> Map (ProjectId, BuildId) [(Project, Build)]
-resolveReverseDeps prjs = List.foldl' f Map.empty prjsWithBuilds where
-  f xs (prjA, buildA) = Map.insert (prjId prjA, bldId buildA) reverseDeps xs where
-    reverseDeps = do
-      prjB <- prjs
-      if name prjA == name prjB then []
-      else prjBuilds prjB >>= (\buildB -> const (prjB, buildB) <$> (List.filter p $ bldDependencies buildB))
-    p (Dependency n vr) = n == name prjA && withinRange (version prjA) vr
-  prjsWithBuilds :: [(Project, Build)]
-  prjsWithBuilds = prjs >>= (\prj -> (\x -> (prj, x)) <$> prjBuilds prj)
-  name = pkgName . pkg
-  version = pkgVersion . pkg
-  pkg = package . packageDescription . prjPkgDesc

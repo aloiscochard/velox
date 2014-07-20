@@ -16,7 +16,7 @@ import System.Posix.Signals (Handler(Catch), installHandler, sigINT)
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
 
-
+import Velox.Artifact (Artifact(..), artifactId)
 import Velox.Build (bldId)
 import Velox.Project (prjBuilds)
 import Velox.Environment (Env)
@@ -41,8 +41,6 @@ automaton env = withWatch env $ \watchEvents -> do
   keyboardThread    <- forkIO . runT_ $ commandsSink <~ keyboardHandler <~ (sourceHandle byChar stdin)
   watchThread       <- forkIO . runT_ $ commandsSink <~ watchHandler <~ watchEvents
 
-  print env
-
   taskHandleVar     <- newEmptyMVar
   runT_ $ commandHandler taskHandleVar <~ sourceIO (takeMVar commandsVar)
 
@@ -57,7 +55,7 @@ automaton env = withWatch env $ \watchEvents -> do
 
 commandHandler :: MVar TaskHandle -> IOSink Command
 commandHandler taskHandleVar = repeatedly $ await >>= \c -> case c of
-  C.Build prj bldId' fps -> do
+  C.Build artifactId' fps -> do
     liftIO $ do
       task <- updateTask
       threadId <- forkIO $ runTask task
@@ -66,8 +64,7 @@ commandHandler taskHandleVar = repeatedly $ await >>= \c -> case c of
       updateTask = do
         handle <- tryTakeMVar taskHandleVar
         traverse (killThread . fst) handle
-        let bld = L.find (\x -> bldId' == bldId x) $ prjBuilds prj
-        let actions = M.unionWith (\xs ys -> L.nub $ xs ++ ys) (M.fromList ((\x -> ((prj, x), fps)) <$> maybeToList bld)) (maybe M.empty (taskActions . snd) handle)
+        let actions = M.unionWith (\xs ys -> L.nub $ xs ++ ys) (M.fromList [(artifactId', fps)]) (maybe M.empty (taskActions . snd) handle)
         return $ Task $ actions where
   C.Configure prj -> do
     return ()
@@ -85,6 +82,6 @@ keyboardHandler = repeatedly $ do
 
 watchHandler :: Process WatchEvent Command
 watchHandler = auto f where
-  f (WatchSource prj bldId fp)  = C.Build prj bldId [fp]
-  f (WatchCabal  prj)           = C.Configure prj
+  f (WatchSource x fp)  = C.Build x [fp]
+  f (WatchCabal  x)     = C.Configure x
 

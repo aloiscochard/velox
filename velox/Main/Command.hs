@@ -1,10 +1,10 @@
 module Main.Command where
 
-import Velox.Build (BuildId)
-import Velox.Project (Project)
+import Velox.Artifact (ArtifactId)
+import Velox.Project (ProjectId)
 
 data Command =
-    Build     Project BuildId [FilePath]
-  | Configure Project
+    Build     ArtifactId [FilePath]
+  | Configure ProjectId
   | Quit
-  deriving (Eq, Show)
+  deriving (Eq)
