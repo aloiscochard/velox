@@ -18,14 +18,14 @@ import qualified Data.Map.Strict as Map
 
 import Distribution.Sandbox.Utils (findSandbox, readSandboxSources)
 import Velox.Build (Build, BuildId, bldId, bldKind)
-import Velox.Dependencies (ReverseDependencies, resolveReverseDependencies)
+import Velox.Dependencies (Dependencies, resolveDependencies)
 import Velox.Project (Project(..), ProjectId, findProject, findProjects, prjBuilds, prjId, prjName)
 import Velox.Workspace (Workspace(..), findWorkspace, wsDir)
 
 data Env = Env
   { workspace :: Workspace
   , projects :: [Project]
-  , reverseDependencies :: ReverseDependencies
+  , dependencies :: Dependencies
   , leader :: Maybe Project
   , isStandalone :: Bool }
 
@@ -47,7 +47,7 @@ loadEnv = do
     Just ws -> do
       prjs <- findProjects $ wsDir ws
       leader <- findProject fp
-      return . Right $ Env ws (concat [maybeToList leader, prjs]) (resolveReverseDependencies prjs) leader False
+      return . Right $ Env ws (concat [maybeToList leader, prjs]) (resolveDependencies prjs) leader False
   where
     createStandalone :: FilePath -> Project -> IO (Either LoadError Env)
     createStandalone fp prj = do
@@ -58,6 +58,6 @@ loadEnv = do
           xs <- readSandboxSources p
           ys <- traverse findProject xs
           let prjs = prj:(maybeToList =<< ys)
-          return . Right $ Env (Workspace fp p) prjs (resolveReverseDependencies prjs) (Just prj) True
+          return . Right $ Env (Workspace fp p) prjs (resolveDependencies prjs) (Just prj) True
       where
         sandboxPath = fp </> ".cabal-sandbox"
