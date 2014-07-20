@@ -20,13 +20,13 @@ import Velox.Artifact (Artifact(..), artifactId)
 import Velox.Build (bldId)
 import Velox.Project (prjBuilds)
 import Velox.Environment (Env)
-import Velox.Task (Task(..), taskActions, runTask)
+import Velox.Job (Job(..), jobTasks, runJob)
 import Main.Command (Command)
 import Main.Watch (WatchEvent(..), withWatch)
 
 import qualified Main.Command as C
 
-type TaskHandle = (ThreadId, Task)
+type JobHandle = (ThreadId, Job)
 
 automaton :: Env -> IO ()
 automaton env = withWatch env $ \watchEvents -> do
@@ -41,31 +41,31 @@ automaton env = withWatch env $ \watchEvents -> do
   keyboardThread    <- forkIO . runT_ $ commandsSink <~ keyboardHandler <~ (sourceHandle byChar stdin)
   watchThread       <- forkIO . runT_ $ commandsSink <~ watchHandler <~ watchEvents
 
-  taskHandleVar     <- newEmptyMVar
-  runT_ $ commandHandler taskHandleVar <~ sourceIO (takeMVar commandsVar)
+  jobHandleVar     <- newEmptyMVar
+  runT_ $ commandHandler jobHandleVar <~ sourceIO (takeMVar commandsVar)
 
   killThread watchThread
   killThread keyboardThread
 
-  taskHandle        <- tryTakeMVar taskHandleVar
-  traverse (killThread . fst) taskHandle
+  jobHandle         <- tryTakeMVar jobHandleVar
+  traverse (killThread . fst) jobHandle
 
   return ()
 
 
-commandHandler :: MVar TaskHandle -> IOSink Command
-commandHandler taskHandleVar = repeatedly $ await >>= \c -> case c of
+commandHandler :: MVar JobHandle -> IOSink Command
+commandHandler jobHandleVar = repeatedly $ await >>= \c -> case c of
   C.Build artifactId' fps -> do
     liftIO $ do
-      task <- updateTask
-      threadId <- forkIO $ runTask task
-      putMVar taskHandleVar (threadId, task)
+      job <- updateJob
+      threadId <- forkIO $ runJob job
+      putMVar jobHandleVar (threadId, job)
     return () where
-      updateTask = do
-        handle <- tryTakeMVar taskHandleVar
+      updateJob = do
+        handle <- tryTakeMVar jobHandleVar
         traverse (killThread . fst) handle
-        let actions = M.unionWith (\xs ys -> L.nub $ xs ++ ys) (M.fromList [(artifactId', fps)]) (maybe M.empty (taskActions . snd) handle)
-        return $ Task $ actions where
+        let tasks = M.unionWith (\xs ys -> L.nub $ xs ++ ys) (M.fromList [(artifactId', fps)]) (maybe M.empty (jobTasks . snd) handle)
+        return $ Job $ tasks where
   C.Configure prj -> do
     return ()
   C.Quit          -> do

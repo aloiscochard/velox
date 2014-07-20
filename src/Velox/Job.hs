@@ -1,4 +1,4 @@
-module Velox.Task where
+module Velox.Job where
 
 import Control.Applicative
 import Data.Map.Strict (Map)
@@ -12,11 +12,11 @@ import Velox.Artifact (ArtifactId)
 -- TODO REMOVE
 import Control.Concurrent (threadDelay)
 
-data Task = Task { taskActions :: Map ArtifactId [FilePath] }
+data Job = Job { jobTasks :: Map ArtifactId [FilePath] }
 
-runTask :: Task -> IO ()
-runTask (Task actions) = do
-  print actions
+runJob :: Job -> IO ()
+runJob (Job tasks) = do
+  print tasks
   threadDelay $ 5 * 1000 * 1000
   putStrLn "(done)"
 

@@ -23,8 +23,8 @@ library
     Velox.Dependencies
     Velox.Environment
     Velox.Internal
+    Velox.Job
     Velox.Project
-    Velox.Task
     Velox.Workspace
   build-depends:       
       base                >= 4.7        && < 5
