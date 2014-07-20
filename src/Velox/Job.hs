@@ -59,15 +59,18 @@ runJob ds j = do
     tryRun tcv = try $ do
       success         <- foldM (runStep tcv) True $ planJob ds j
       putStrLn $ "(finish) " ++ show success where
-        runStep tcv False xs = return False
-        runStep tcv True  xs = do
-          asyncs <- traverse (createAsync tcv . runTask) xs
-          xs <- traverse wait asyncs
-          return $ and xs where
-            createAsync :: MVar TaskContext -> IO a -> IO (Async a)
-            createAsync v fx = do
-              tc    <- takeMVar v
-              async <- async fx
-              putMVar v $ tc { asyncs = (const () <$> async) : asyncs tc }
-              return async
+        runStep tcv success xs = do
+          swapMVar tcv $ TaskContext [] []
+          case success of
+            False -> return False
+            True  -> do
+              asyncs <- traverse (createAsync tcv . runTask) xs
+              xs <- traverse wait asyncs
+              return $ and xs where
+                createAsync :: MVar TaskContext -> IO a -> IO (Async a)
+                createAsync v fx = do
+                  tc    <- takeMVar v
+                  async <- async fx
+                  putMVar v $ tc { asyncs = (const () <$> async) : asyncs tc }
+                  return async
 
