@@ -13,10 +13,10 @@ main :: IO ()
 main = do
   args  <- getArgs
   run args where
-    run ["workspace", "init"] = initWorkspace "." >>= \x -> case x of
+    run ["workspace", "init"] = initWorkspace >>= \x -> case x of
       Nothing -> error "Workspace already exists, run `velox workspace delete` first if you want to reinitialize it."
       Just ws -> putStrLn $ concat ["Workspace has been successfully initialized at '", wsDataDir $ wsDir ws, "'."]
-    run ["workspace", "delete"] = deleteWorkspace "." >>= \x -> case x of
+    run ["workspace", "delete"] = deleteWorkspace >>= \x -> case x of
       Nothing -> error "No workspace found."
       Just fp -> putStrLn $ concat ["Workspace '", fp, "' has been successfully deleted."]
     run ["--version"] = putStrLn $ concat ["velox: ", display version]

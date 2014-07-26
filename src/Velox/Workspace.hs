@@ -1,8 +1,10 @@
 module Velox.Workspace where
 
+import Data.Traversable
 import System.Directory (canonicalizePath, createDirectory, doesDirectoryExist, removeDirectory)
 import System.IO (FilePath)
 import System.FilePath ((</>), takeDirectory)
+import System.Process (runCommand, waitForProcess)
 
 data Workspace = Workspace { wsDir :: FilePath, wsSandboxDir :: FilePath }
   deriving (Eq, Show)
@@ -10,19 +12,24 @@ data Workspace = Workspace { wsDir :: FilePath, wsSandboxDir :: FilePath }
 wsDataDir :: FilePath -> FilePath
 wsDataDir r = r </> ".velox-workspace"
 
-initWorkspace :: FilePath -> IO (Maybe Workspace)
-initWorkspace fp' = do
-  fp <- canonicalizePath fp'
+initWorkspace :: IO (Maybe Workspace)
+initWorkspace = do
+  fp <- canonicalizePath "."
   let dataDir = wsDataDir fp
   exist <- doesDirectoryExist dataDir
   if exist then return Nothing else do
     createDirectory dataDir
-    -- TODO Run `cabal sandbox init`
-    loadWorkspace fp
+    wp <- loadWorkspace fp
+    traverse (init dataDir) wp
+    return wp where
+      init dataDir wp = do
+        handle <- runCommand $ concat ["cabal sandbox init --sandbox='", dataDir, "'"]
+        waitForProcess handle
+        return ()
 
-deleteWorkspace :: FilePath -> IO (Maybe FilePath)
-deleteWorkspace fp' = do
-  fp <- canonicalizePath fp'
+deleteWorkspace :: IO (Maybe FilePath)
+deleteWorkspace = do
+  fp <- canonicalizePath "."
   let dataDir = wsDataDir fp
   exist <- doesDirectoryExist dataDir
   if exist then do
@@ -45,6 +52,3 @@ loadWorkspace fp = do
     return Nothing
   where
     dataDir = wsDataDir fp
-
-
-
