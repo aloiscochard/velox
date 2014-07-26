@@ -6,8 +6,10 @@ import Velox.Job.Action
 
 data Event
   = JobStart
-  | ProjectActionsStart  [(ProjectId, ProjectAction)]
-  | ArtfiactActionsStart [(ArtifactId, ArtifactAction)]
+  | ProjectActionsStart  [(ProjectId, [ProjectAction])]
+  | ArtifactActionsStart [(ArtifactId, [ArtifactAction])]
   | Info String
+  | Finish Bool
+  | Aborted
   deriving (Show)
 

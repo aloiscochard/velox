@@ -6,6 +6,7 @@ import Control.Exception
 import Control.Monad
 import Control.Concurrent.Async
 import Control.Concurrent.MVar
+import Data.Machine ((<~), runT_, source)
 import Data.Map.Strict (Map)
 import Data.Traversable (traverse)
 import GHC.IO.Exception (AsyncException)
@@ -67,9 +68,13 @@ runPlan :: TaskContext -> Plan -> IO Bool
 runPlan tc plan = case plan of
     Plan prjActions [] ->
       traverseWithContext runProjectActions $ M.toList prjActions
-    Plan prjActions (xs:xss) -> do
-      let (prjActions', remainings) = M.partitionWithKey (p xs) prjActions
-      traverseWithContext runProjectActions $ M.toList prjActions'
+    Plan prjActions'' (xs:xss) -> do
+      let (prjActions', remainings) = M.partitionWithKey (p xs) prjActions''
+      let prjActions = M.toList prjActions'
+      -- TODO Optimize actions!
+      sendDisplayEvents tc $ [D.ProjectActionsStart prjActions]
+      traverseWithContext runProjectActions prjActions
+      sendDisplayEvents tc $ [D.ArtifactActionsStart xs]
       traverseWithContext runArtifactActions xs
       runPlan tc (Plan remainings xss) where
         p xs prjId _ = any (\(artId, _) -> A.prjId artId == prjId) xs
@@ -80,25 +85,22 @@ runPlan tc plan = case plan of
       return $ and xs
     runArtifactActions :: (ArtifactId, [ArtifactAction]) -> IO Bool
     runArtifactActions (a, fps) = do
-      -- TODO Optimize actions!
-      putStrLn (show a ++ " START")
       threadDelay $ 1000 * 1000
-      putStrLn (show a ++ " FINISH")
       return True
     runProjectActions :: (ProjectId, [ProjectAction]) -> IO Bool
     runProjectActions xs = return True
 
 runJob :: Dependencies -> IOSink D.Event -> Job -> IO ()
 runJob ds displayHandler j = do
-  putStrLn "(start)"
   tc  <- newTaskContext displayHandler
   x   <- tryRun tc
   terminateTaskContext tc
   case x of
-    Left _ -> putStrLn $ "(aborted)"
+    Left _ -> notify D.Aborted
     _      -> return ()
   where
     tryRun :: TaskContext -> IO (Either AsyncException ())
     tryRun tc = try $ do
       success <- runPlan tc $ planifyJob ds j
-      putStrLn $ "(finish) " ++ show success where
+      notify $ D.Finish success where
+    notify x = runT_ $ displayHandler <~ source [x]

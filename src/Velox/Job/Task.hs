@@ -39,6 +39,9 @@ newTaskContext displayHandler = do
   forkAsync tc $ runT_ $ displayHandler <~ (prepended [D.JobStart]) <~ (sourceIO . atomically $ readTQueue events)
   return tc
 
+sendDisplayEvents :: TaskContext -> [D.Event] -> IO ()
+sendDisplayEvents tc xs = runT_ $ displayInput tc <~ source xs
+
 forkAsync :: TaskContext -> IO a -> IO (Async a)
 forkAsync tc fx = do
   asyncs'    <- takeMVar $ asyncs tc
