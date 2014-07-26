@@ -11,7 +11,7 @@ import qualified Data.Map.Strict as M
 
 import Velox.Artifact (Artifact(..), ArtifactId(..), artifactId)
 import Velox.Build (Build, bldDependencies)
-import Velox.Project (Project, prjId, prjBuilds, prjPkgDesc)
+import Velox.Project (Project, ProjectId, prjId, prjBuilds, prjPkgDesc)
 
 import qualified Velox.Artifact as A
 

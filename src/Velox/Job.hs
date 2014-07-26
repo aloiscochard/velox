@@ -14,17 +14,23 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as M
 
 import Velox.Artifact (ArtifactId(..))
-import Velox.Dependencies (Dependencies, directDependencies, filterDependencies, reverseDependencies)
-import Velox.Job.Task (TaskContext(..), runTask, terminateTaskContext)
-import Velox.Project (prjId)
+import Velox.Dependencies
+import Velox.Job.Task
+import Velox.Project (ProjectId)
 
-data Job = Job { jobTasks :: Map ArtifactId [FilePath] }
+import qualified Velox.Artifact as A
 
-planArtifacts :: Dependencies -> [ArtifactId] -> [[ArtifactId]]
-planArtifacts ds [] = []
-planArtifacts ds xs = case zs of
+data Job = Job { jobTasks :: [Task] }
+
+data Plan = Plan
+  { planProjects  :: Map ProjectId  [ProjectAction]
+  , planArtifacts :: [[(ArtifactId, [ArtifactAction])]] }
+
+planifyArtifacts :: Dependencies -> [ArtifactId] -> [[ArtifactId]]
+planifyArtifacts ds [] = []
+planifyArtifacts ds xs = case zs of
     ([], [])    -> if null $ fst ys then [snd ys] else [snd ys, fst ys]
-    (fzs, szs)  -> snd ys : (planArtifacts ds $ fst ys)
+    (fzs, szs)  -> snd ys : (planifyArtifacts ds $ fst ys)
   where
     ys = f ds xs
     zs = f ds $ fst ys
@@ -33,44 +39,52 @@ planArtifacts ds xs = case zs of
       directDeps = directDependencies deps
       deps = filterDependencies xs ds
 
-planJob :: Dependencies -> Job ->  [[(ArtifactId, [FilePath])]]
-planJob ds job = f <$> planArtifacts ds artifactIds where
-    f = (\xs -> (\x -> (x, M.findWithDefault [] x tasks)) <$> xs)
-    artifactIds = resolve $ M.keys tasks where
+planifyJob :: Dependencies -> Job -> Plan
+planifyJob ds job = Plan projectActions $ f <$> planifyArtifacts ds artifactIds where
+    f = (\xs -> (\x -> (x, M.findWithDefault [] x artifactActions)) <$> xs)
+    artifactIds = resolve $ M.keys artifactActions where
       resolve xs  = if zs == xs then xs else resolve zs where
         zs = L.nub (ys ++ xs)
         ys = (\x -> M.findWithDefault [] x reverseDeps) =<< xs
       reverseDeps = reverseDependencies ds
-    tasks       = jobTasks job
+    artifactActions = M.fromListWith (++) xs where
+      xs = jobTasks job >>= \task -> case task of
+        ArtifactTask i a  -> [(i, [a])]
+        _                 -> []
+    projectActions = M.fromListWith (++) xs where
+      xs = jobTasks job >>= \task -> case task of
+        ProjectTask i a   -> [(i, [a])]
+        _                 -> []
+
+runPlan :: TaskContext -> Plan -> IO Bool
+runPlan tc plan = case plan of
+    Plan prjActions [] ->
+      traverseWithContext runProjectActions $ M.toList prjActions
+    Plan prjActions (xs:xss) -> do
+      let (prjActions', remainings) = M.partitionWithKey (p xs) prjActions
+      traverseWithContext runProjectActions $ M.toList prjActions'
+      traverseWithContext runArtifactActions xs
+      runPlan tc (Plan remainings xss) where
+        p xs prjId _ = any (\(artId, _) -> A.prjId artId == prjId) xs
+  where
+    traverseWithContext fx xs = do
+      asyncs <- traverse (forkAsync tc . fx) xs
+      xs <- traverse wait asyncs
+      return $ and xs
 
 runJob :: Dependencies -> Job -> IO ()
 runJob ds j = do
   putStrLn "(start)"
-  tcv <- newMVar $ TaskContext [] []
-  res <- tryRun tcv
+  asyncs  <- newMVar []
+  let tc = TaskContext asyncs
+  res     <- tryRun tc
   case res of
     Left ThreadKilled -> do
-      tc  <- takeMVar tcv
       terminateTaskContext tc
       putStrLn $ "(aborted)"
     _                 -> return ()
   where
-    tryRun :: MVar TaskContext -> IO (Either AsyncException ())
-    tryRun tcv = try $ do
-      success         <- foldM (runStep tcv) True $ planJob ds j
+    tryRun :: TaskContext -> IO (Either AsyncException ())
+    tryRun tc = try $ do
+      success <- runPlan tc $ planifyJob ds j
       putStrLn $ "(finish) " ++ show success where
-        runStep tcv success xs = do
-          swapMVar tcv $ TaskContext [] []
-          case success of
-            False -> return False
-            True  -> do
-              asyncs <- traverse (createAsync tcv . runTask) xs
-              xs <- traverse wait asyncs
-              return $ and xs where
-                createAsync :: MVar TaskContext -> IO a -> IO (Async a)
-                createAsync v fx = do
-                  tc    <- takeMVar v
-                  async <- async fx
-                  putMVar v $ tc { asyncs = (const () <$> async) : asyncs tc }
-                  return async
-

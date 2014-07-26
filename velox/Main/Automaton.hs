@@ -22,10 +22,9 @@ import Velox.Dependencies (Dependencies)
 import Velox.Project (prjBuilds)
 import Velox.Environment (Env, dependencies)
 import Velox.Job (Job(..), jobTasks, runJob)
-import Main.Command (Command)
+import Velox.Job.Task (Task(..), ArtifactAction(..), ProjectAction(..))
+import Main.Command (Command(..))
 import Main.Watch (WatchEvent(..), withWatch)
-
-import qualified Main.Command as C
 
 type JobHandle = (ThreadId, Job)
 
@@ -34,7 +33,7 @@ automaton env = withWatch env $ \watchEvents -> do
   commandsVar       <- newEmptyMVar
   let commandsSink  = sinkIO (putMVar commandsVar)
 
-  installHandler sigINT (Catch $ putMVar commandsVar C.Quit) Nothing
+  installHandler sigINT (Catch $ putMVar commandsVar Quit) Nothing
 
   hSetBuffering stdin NoBuffering
   hSetEcho      stdin False
@@ -56,7 +55,7 @@ automaton env = withWatch env $ \watchEvents -> do
 
 commandHandler :: Dependencies -> MVar JobHandle -> IOSink Command
 commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of
-  C.Build artifactId' fps -> do
+  ExecuteTasks tasks -> do
     liftIO $ do
       job <- updateJob
       threadId <- forkIO $ do
@@ -68,11 +67,8 @@ commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of
       updateJob = do
         handle <- tryTakeMVar jobHandleVar
         traverse (killThread . fst) handle
-        let tasks = M.unionWith (\xs ys -> L.nub $ xs ++ ys) (M.fromList [(artifactId', fps)]) (maybe M.empty (jobTasks . snd) handle)
-        return $ Job $ tasks where
-  C.Configure prj -> do
-    return ()
-  C.Quit          -> do
+        return $ Job $ (join $ maybeToList $ (jobTasks . snd) <$> handle) ++ tasks where
+  Quit          -> do
     liftIO $ putStrLn "So long, and thanks for all the fish."
     stop
 
@@ -80,12 +76,12 @@ keyboardHandler :: Process Char Command
 keyboardHandler = repeatedly $ do
   w <- await
   case w of
-    '\EOT'  -> yield C.Quit
-    'q'     -> yield C.Quit
+    '\EOT'  -> yield Quit
+    'q'     -> yield Quit
     _       -> return ()
 
 watchHandler :: Process WatchEvent Command
 watchHandler = auto f where
-  f (WatchSource x fp)  = C.Build x [fp]
-  f (WatchCabal  x)     = C.Configure x
+  f (WatchSource x fp)  = ExecuteTasks [ArtifactTask x $ TypeCheck [fp], ArtifactTask x Build]
+  f (WatchCabal  x)     = ExecuteTasks [ProjectTask x Configure]
 
