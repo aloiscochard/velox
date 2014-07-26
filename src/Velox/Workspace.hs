@@ -1,6 +1,6 @@
 module Velox.Workspace where
 
-import System.Directory (doesDirectoryExist)
+import System.Directory (canonicalizePath, createDirectory, doesDirectoryExist, removeDirectory)
 import System.IO (FilePath)
 import System.FilePath ((</>), takeDirectory)
 
@@ -9,6 +9,26 @@ data Workspace = Workspace { wsDir :: FilePath, wsSandboxDir :: FilePath }
 
 wsDataDir :: FilePath -> FilePath
 wsDataDir r = r </> ".velox-workspace"
+
+initWorkspace :: FilePath -> IO (Maybe Workspace)
+initWorkspace fp' = do
+  fp <- canonicalizePath fp'
+  let dataDir = wsDataDir fp
+  exist <- doesDirectoryExist dataDir
+  if exist then return Nothing else do
+    createDirectory dataDir
+    -- TODO Run `cabal sandbox init`
+    loadWorkspace fp
+
+deleteWorkspace :: FilePath -> IO (Maybe FilePath)
+deleteWorkspace fp' = do
+  fp <- canonicalizePath fp'
+  let dataDir = wsDataDir fp
+  exist <- doesDirectoryExist dataDir
+  if exist then do
+    removeDirectory dataDir
+    return $ Just dataDir
+  else return Nothing
 
 findWorkspace :: FilePath -> IO (Maybe Workspace)
 findWorkspace fp = loadWorkspace fp >>= \ws -> case ws of
