@@ -22,7 +22,8 @@ import Velox.Dependencies (Dependencies)
 import Velox.Project (prjBuilds)
 import Velox.Environment (Env, dependencies)
 import Velox.Job (Job(..), jobTasks, runJob)
-import Velox.Job.Task (Task(..), ArtifactAction(..), ProjectAction(..))
+import Velox.Job.Action
+import Velox.Job.Task (Task(..))
 import Main.Command (Command(..))
 import Main.Watch (WatchEvent(..), withWatch)
 
@@ -56,8 +57,9 @@ automaton env = withWatch env $ \watchEvents -> do
 
 displayHandler :: IOSink D.Event
 displayHandler = repeatedly $ await >>= \x -> case x of
-  D.Start         -> liftIO $ putStrLn "Starting ..."
+  D.JobStart      -> liftIO $ putStrLn "Starting ..."
   D.Info message  -> liftIO $ putStrLn message
+  event           -> liftIO $ print event
 
 commandHandler :: Dependencies -> MVar JobHandle -> IOSink Command
 commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of

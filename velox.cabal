@@ -25,6 +25,7 @@ library
     Velox.Environment
     Velox.Internal
     Velox.Job
+    Velox.Job.Action
     Velox.Job.Task
     Velox.Project
     Velox.Workspace

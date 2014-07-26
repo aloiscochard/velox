@@ -17,6 +17,7 @@ import qualified Data.Map.Strict as M
 
 import Velox.Artifact (ArtifactId(..))
 import Velox.Dependencies
+import Velox.Job.Action
 import Velox.Job.Task
 import Velox.Project (ProjectId)
 

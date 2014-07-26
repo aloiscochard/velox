@@ -17,6 +17,7 @@ import System.Process
 import System.Exit (ExitCode)
 
 import Velox.Artifact (ArtifactId)
+import Velox.Job.Action
 import Velox.Project (ProjectId)
 
 import qualified Velox.Display as D
@@ -25,19 +26,6 @@ data Task
   = ArtifactTask  ArtifactId  ArtifactAction
   | ProjectTask   ProjectId   ProjectAction
   deriving (Eq, Show)
-
-data ArtifactAction
-  = TypeCheck [FilePath]
-  | Build
-  deriving (Eq, Ord, Show)
-
-data ProjectAction
-  = Configure
-  deriving (Eq, Ord, Show)
-
-data Action
-  = Success
-  | Failure String
 
 data TaskContext = TaskContext
   { asyncs        :: MVar [Async ()]
@@ -48,7 +36,7 @@ newTaskContext displayHandler = do
   asyncs <- newMVar []
   events <- atomically $ newTQueue
   let tc = TaskContext asyncs (sinkIO (atomically . writeTQueue events))
-  forkAsync tc $ runT_ $ displayHandler <~ (prepended [D.Start]) <~ (sourceIO . atomically $ readTQueue events)
+  forkAsync tc $ runT_ $ displayHandler <~ (prepended [D.JobStart]) <~ (sourceIO . atomically $ readTQueue events)
   return tc
 
 forkAsync :: TaskContext -> IO a -> IO (Async a)
