@@ -1,8 +1,8 @@
 module Velox.Environment where
 
 import Control.Arrow ((&&&))
-import Control.Applicative ((<$>))
-import Control.Monad (join)
+import Control.Applicative
+import Control.Monad
 import Data.Char (toUpper)
 import Data.Function (on)
 import Data.Map.Strict (Map)
@@ -10,7 +10,7 @@ import Data.Maybe (maybeToList)
 import Data.Traversable (traverse)
 import Distribution.Text (display)
 import GHC.Exts (sortWith)
-import System.Directory (canonicalizePath, doesDirectoryExist)
+import System.Directory (canonicalizePath, copyFile, doesDirectoryExist, doesFileExist, getModificationTime, renameFile)
 import System.FilePath ((</>))
 
 import qualified Data.List as List
@@ -45,9 +45,11 @@ loadEnv = do
           prj <- createStandalone fp prjDesc
           return prj
     Just ws -> do
-      prjs <- findProjects $ wsDir ws
+      prjs' <- findProjects $ wsDir ws
       leader <- findProject fp
-      return . Right $ Env ws (concat [maybeToList leader, prjs]) (resolveDependencies prjs) leader False
+      let prjs = concat [maybeToList leader, prjs']
+      initSandboxes ws prjs
+      return . Right $ Env ws prjs (resolveDependencies prjs) leader False
   where
     createStandalone :: FilePath -> Project -> IO (Either LoadError Env)
     createStandalone fp prj = do
@@ -61,3 +63,12 @@ loadEnv = do
           return . Right $ Env (Workspace fp p) prjs (resolveDependencies prjs) (Just prj) True
       where
         sandboxPath = fp </> ".cabal-sandbox"
+
+initSandboxes :: Workspace -> [Project] -> IO ()
+initSandboxes ws prjs = do
+  traverse overwrite prjs
+  return () where
+    overwrite prj = copyFile rootFile $ (prjDir prj </> configFile)
+    rootFile = wsDir ws </> configFile
+    configFile = "cabal.sandbox.config"
+
