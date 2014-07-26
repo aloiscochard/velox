@@ -6,33 +6,36 @@ import System.IO (FilePath)
 import System.FilePath ((</>), takeDirectory)
 import System.Process (runCommand, waitForProcess)
 
+import Velox.Internal (runCommandIn)
+
 data Workspace = Workspace { wsDir :: FilePath, wsSandboxDir :: FilePath }
   deriving (Eq, Show)
 
 wsDataDir :: FilePath -> FilePath
 wsDataDir r = r </> ".velox-workspace"
 
-initWorkspace :: IO (Maybe Workspace)
-initWorkspace = do
-  fp <- canonicalizePath "."
+-- TODO Improve error handling
+initWorkspace :: FilePath -> IO (Maybe Workspace)
+initWorkspace fp' = do
+  fp <- canonicalizePath fp'
   let dataDir = wsDataDir fp
   exist <- doesDirectoryExist dataDir
   if exist then return Nothing else do
     createDirectory dataDir
     wp <- loadWorkspace fp
-    traverse (init dataDir) wp
+    traverse (init fp dataDir) wp
     return wp where
-      init dataDir wp = do
-        handle <- runCommand $ concat ["cabal sandbox init --sandbox='", dataDir, "'"]
-        waitForProcess handle
+      init fp dataDir wp = do
+        runCommandIn fp "cabal" ["sandbox", "init", concat ["--sandbox='", dataDir, "'"]]
         return ()
 
-deleteWorkspace :: IO (Maybe FilePath)
-deleteWorkspace = do
-  fp <- canonicalizePath "."
+deleteWorkspace :: FilePath -> IO (Maybe FilePath)
+deleteWorkspace fp' = do
+  fp <- canonicalizePath fp'
   let dataDir = wsDataDir fp
   exist <- doesDirectoryExist dataDir
   if exist then do
+    -- TODO Need to use machines-directory to remove properly
     removeDirectory dataDir
     return $ Just dataDir
   else return Nothing
