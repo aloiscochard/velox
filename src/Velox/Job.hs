@@ -7,7 +7,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
 import Data.Map.Strict (Map)
 import Data.Traversable (traverse)
-import GHC.IO.Exception (AsyncException(ThreadKilled))
+import GHC.IO.Exception (AsyncException)
 import System.FilePath
 
 import qualified Data.List as L
@@ -19,6 +19,9 @@ import Velox.Job.Task
 import Velox.Project (ProjectId)
 
 import qualified Velox.Artifact as A
+
+-- TODO Remove
+import Control.Concurrent (threadDelay)
 
 data Job = Job { jobTasks :: [Task] }
 
@@ -71,15 +74,23 @@ runPlan tc plan = case plan of
       asyncs <- traverse (forkAsync tc . fx) xs
       xs <- traverse wait asyncs
       return $ and xs
+    runArtifactActions :: (ArtifactId, [ArtifactAction]) -> IO Bool
+    runArtifactActions (a, fps) = do
+      -- TODO Optimize actions!
+      putStrLn (show a ++ " START")
+      threadDelay $ 1000 * 1000
+      putStrLn (show a ++ " FINISH")
+      return True
+    runProjectActions :: (ProjectId, [ProjectAction]) -> IO Bool
+    runProjectActions = undefined
 
 runJob :: Dependencies -> Job -> IO ()
 runJob ds j = do
   putStrLn "(start)"
-  asyncs  <- newMVar []
-  let tc = TaskContext asyncs
-  res     <- tryRun tc
+  tc    <- newTaskContext
+  res   <- tryRun tc
   case res of
-    Left ThreadKilled -> do
+    Left _ -> do
       terminateTaskContext tc
       putStrLn $ "(aborted)"
     _                 -> return ()
