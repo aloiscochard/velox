@@ -21,6 +21,7 @@ import Velox.Build (bldId, bldInfo)
 import Velox.Project (ProjectId, prjId, prjDir, prjBuilds, prjSourceDirs, prjSourceModuleFiles)
 import Velox.Environment (Env, projects)
 
+-- TODO Rename to `Event` and use qualified import
 data WatchEvent = WatchSource ArtifactId FilePath
                 | WatchCabal  ProjectId
                 deriving (Eq)

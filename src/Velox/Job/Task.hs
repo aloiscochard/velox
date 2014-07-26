@@ -1,18 +1,25 @@
+{-# LANGUAGE Rank2Types #-}
 module Velox.Job.Task where
 
 import Control.Applicative
 import Control.Concurrent.Async
 import Control.Concurrent.MVar
+import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM.TQueue
 import Control.Exception
 import Control.Monad
 import Data.Either (isLeft)
+import Data.Machine
 import Data.Traversable (traverse)
 import GHC.IO.Exception (AsyncException)
+import System.IO.Machine (IOSink, IOSource, sinkIO, sourceIO)
 import System.Process
 import System.Exit (ExitCode)
 
 import Velox.Artifact (ArtifactId)
 import Velox.Project (ProjectId)
+
+import qualified Velox.Display as D
 
 data Task
   = ArtifactTask  ArtifactId  ArtifactAction
@@ -33,12 +40,16 @@ data Action
   | Failure String
 
 data TaskContext = TaskContext
-  { asyncs  :: MVar [Async ()] }
+  { asyncs        :: MVar [Async ()]
+  , displayInput  :: IOSink D.Event }
 
-newTaskContext :: IO TaskContext
-newTaskContext = do
-  asyncs  <- newMVar []
-  return $ TaskContext asyncs
+newTaskContext :: IOSink D.Event -> IO TaskContext
+newTaskContext displayHandler = do
+  asyncs <- newMVar []
+  events <- atomically $ newTQueue
+  let tc = TaskContext asyncs (sinkIO (atomically . writeTQueue events))
+  forkAsync tc $ runT_ $ displayHandler <~ (prepended [D.Start]) <~ (sourceIO . atomically $ readTQueue events)
+  return tc
 
 forkAsync :: TaskContext -> IO a -> IO (Async a)
 forkAsync tc fx = do

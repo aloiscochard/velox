@@ -1,3 +1,4 @@
+{-# LANGUAGE Rank2Types #-}
 module Velox.Job where
 
 import Control.Applicative
@@ -9,6 +10,7 @@ import Data.Map.Strict (Map)
 import Data.Traversable (traverse)
 import GHC.IO.Exception (AsyncException)
 import System.FilePath
+import System.IO.Machine (IOSink)
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
@@ -19,6 +21,7 @@ import Velox.Job.Task
 import Velox.Project (ProjectId)
 
 import qualified Velox.Artifact as A
+import qualified Velox.Display as D
 
 -- TODO Remove
 import Control.Concurrent (threadDelay)
@@ -84,12 +87,12 @@ runPlan tc plan = case plan of
     runProjectActions :: (ProjectId, [ProjectAction]) -> IO Bool
     runProjectActions = undefined
 
-runJob :: Dependencies -> Job -> IO ()
-runJob ds j = do
+runJob :: Dependencies -> IOSink D.Event -> Job -> IO ()
+runJob ds displayHandler j = do
   putStrLn "(start)"
-  tc    <- newTaskContext
-  res   <- tryRun tc
-  case res of
+  tc  <- newTaskContext displayHandler
+  x   <- tryRun tc
+  case x of
     Left _ -> do
       terminateTaskContext tc
       putStrLn $ "(aborted)"

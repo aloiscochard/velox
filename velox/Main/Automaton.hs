@@ -26,6 +26,8 @@ import Velox.Job.Task (Task(..), ArtifactAction(..), ProjectAction(..))
 import Main.Command (Command(..))
 import Main.Watch (WatchEvent(..), withWatch)
 
+import qualified Velox.Display as D
+
 type JobHandle = (ThreadId, Job)
 
 automaton :: Env -> IO ()
@@ -52,6 +54,10 @@ automaton env = withWatch env $ \watchEvents -> do
 
   return ()
 
+displayHandler :: IOSink D.Event
+displayHandler = repeatedly $ await >>= \x -> case x of
+  D.Start         -> liftIO $ putStrLn "Starting ..."
+  D.Info message  -> liftIO $ putStrLn message
 
 commandHandler :: Dependencies -> MVar JobHandle -> IOSink Command
 commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of
@@ -59,7 +65,7 @@ commandHandler ds jobHandleVar = repeatedly $ await >>= \c -> case c of
     liftIO $ do
       job <- updateJob
       threadId <- forkIO $ do
-        runJob ds job
+        runJob ds displayHandler job
         tryTakeMVar jobHandleVar
         return ()
       putMVar jobHandleVar (threadId, job)
