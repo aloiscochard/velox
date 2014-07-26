@@ -85,7 +85,7 @@ runPlan tc plan = case plan of
       putStrLn (show a ++ " FINISH")
       return True
     runProjectActions :: (ProjectId, [ProjectAction]) -> IO Bool
-    runProjectActions = undefined
+    runProjectActions xs = return True
 
 runJob :: Dependencies -> IOSink D.Event -> Job -> IO ()
 runJob ds displayHandler j = do
