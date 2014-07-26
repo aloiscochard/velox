@@ -70,11 +70,11 @@ runPlan tc plan = case plan of
       traverseWithContext runProjectActions $ M.toList prjActions
     Plan prjActions'' (xs:xss) -> do
       let (prjActions', remainings) = M.partitionWithKey (p xs) prjActions''
-      let prjActions = M.toList prjActions'
+      let ys = M.toList prjActions'
       -- TODO Optimize actions!
-      sendDisplayEvents tc $ [D.ProjectActionsStart prjActions]
-      traverseWithContext runProjectActions prjActions
-      sendDisplayEvents tc $ [D.ArtifactActionsStart xs]
+      when (not . null $ ys) $ sendDisplayEvents tc $ [D.ProjectActionsStart ys]
+      traverseWithContext runProjectActions ys
+      when (not . null $ xs) $ sendDisplayEvents tc $ [D.ArtifactActionsStart xs]
       traverseWithContext runArtifactActions xs
       runPlan tc (Plan remainings xss) where
         p xs prjId _ = any (\(artId, _) -> A.prjId artId == prjId) xs
