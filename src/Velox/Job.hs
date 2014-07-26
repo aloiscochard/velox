@@ -92,11 +92,10 @@ runJob ds displayHandler j = do
   putStrLn "(start)"
   tc  <- newTaskContext displayHandler
   x   <- tryRun tc
+  terminateTaskContext tc
   case x of
-    Left _ -> do
-      terminateTaskContext tc
-      putStrLn $ "(aborted)"
-    _                 -> return ()
+    Left _ -> putStrLn $ "(aborted)"
+    _      -> return ()
   where
     tryRun :: TaskContext -> IO (Either AsyncException ())
     tryRun tc = try $ do
