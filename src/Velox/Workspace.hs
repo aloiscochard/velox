@@ -26,7 +26,7 @@ initWorkspace fp' = do
     traverse (init fp dataDir) wp
     return wp where
       init fp dataDir wp = do
-        runCommandIn fp "cabal" ["sandbox", "init", concat ["--sandbox='", dataDir, "'"]]
+        runCommandIn fp "cabal" ["sandbox", "init", concat ["--sandbox=", dataDir, ""]]
         return ()
 
 deleteWorkspace :: FilePath -> IO (Maybe FilePath)
