@@ -43,7 +43,7 @@ sendDisplayEvents :: TaskContext -> [D.Event] -> IO ()
 sendDisplayEvents tc xs = runT_ $ displayInput tc <~ source xs
 
 forkAsync :: TaskContext -> IO a -> IO (Async a)
-forkAsync tc fx = do
+forkAsync tc fx = mask_ $ do
   asyncs'    <- takeMVar $ asyncs tc
   async <- async fx
   putMVar (asyncs tc) $ (const () <$> async) : asyncs'
