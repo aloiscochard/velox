@@ -5,6 +5,7 @@ import Data.Char (isSpace)
 import System.Directory (doesFileExist)
 import System.FilePath ((</>))
 import System.IO (readFile)
+import Data.Maybe (mapMaybe, listToMaybe)
 
 import qualified Data.List as L
 
@@ -14,10 +15,8 @@ findSandbox prjDir = do
   if fileExists then readSandboxDir else return Nothing where
     readSandboxDir = do
       fileContent <- readFile configFile
-      return $ (trim . L.drop 7) <$> (L.find (L.isPrefixOf "prefix:") $ trim <$> lines fileContent)
+      return $ findRemovePrefixMany "prefix:" $ lines fileContent
     configFile = prjDir </> "cabal.sandbox.config"
-    prefix = "prefix:"
-    trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 readSandboxSources :: FilePath -> IO [FilePath]
 readSandboxSources sandboxPath = do
@@ -31,4 +30,25 @@ readSandboxSources sandboxPath = do
         sources :: String -> [(String, [(FilePath, Int)])]
         sources x = read x
     sourcesFile = sandboxPath </> "add-source-timestamps"
+
+
+
+
+findRemovePrefixMany :: String -> [String] -> Maybe String
+findRemovePrefixMany prefix strs =
+  maybeFunctionMany (findRemovePrefix prefix) strs
+
+findRemovePrefix :: String -> String -> Maybe String
+findRemovePrefix prefix str =
+  if prefix `L.isPrefixOf` trim str
+    then Just $ trim $ L.drop (length prefix) $ trim str
+    else Nothing
+ where
+  trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+-- | Runs the given function over a list
+-- and returns the first Just result or
+-- Nothing if no Just was returned
+maybeFunctionMany :: (a -> Maybe b) -> [a] -> Maybe b
+maybeFunctionMany func list = listToMaybe $ mapMaybe func list
 
