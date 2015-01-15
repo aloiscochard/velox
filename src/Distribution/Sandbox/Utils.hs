@@ -15,8 +15,9 @@ findSandbox prjDir = do
   if fileExists then readSandboxDir else return Nothing where
     readSandboxDir = do
       fileContent <- readFile configFile
-      return $ findRemovePrefixMany "prefix:" $ lines fileContent
+      return $ findRemovePrefixMany $ lines fileContent
     configFile = prjDir </> "cabal.sandbox.config"
+    findRemovePrefixMany = maybeFunctionMany $ findRemovePrefix "prefix:"
 
 readSandboxSources :: FilePath -> IO [FilePath]
 readSandboxSources sandboxPath = do
@@ -34,10 +35,6 @@ readSandboxSources sandboxPath = do
 
 
 
-findRemovePrefixMany :: String -> [String] -> Maybe String
-findRemovePrefixMany prefix strs =
-  maybeFunctionMany (findRemovePrefix prefix) strs
-
 findRemovePrefix :: String -> String -> Maybe String
 findRemovePrefix prefix str =
   if prefix `L.isPrefixOf` trim str
@@ -51,4 +48,3 @@ findRemovePrefix prefix str =
 -- Nothing if no Just was returned
 maybeFunctionMany :: (a -> Maybe b) -> [a] -> Maybe b
 maybeFunctionMany func list = listToMaybe $ mapMaybe func list
-
