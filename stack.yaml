@@ -1,12 +1,7 @@
-resolver: lts-3.19
+resolver: lts-5.5
 packages: [
   ".", 
-  "/home/alois/oss/nvim-hs"
 ]
 extra-deps: [
-  msgpack-1.0.0, 
-  nvim-hs-0.0.6, 
-  dyre-0.8.12, 
-  io-storage-0.3, 
-  xdg-basedir-0.2.2
+  msgpack-1.0.0
 ]

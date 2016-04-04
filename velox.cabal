@@ -44,12 +44,26 @@ executable velox
 executable velox-nvim
   main-is:              Main.hs
   other-modules:
-    Velox.Plugin
-    Velox.Plugin.Internal
+    -- Data.MessagePack.ToJSON
+    Data.MessagePack.RPC
+    NVIM.Client
+    -- NVIM.Info
   build-depends:       
       base
-    , nvim-hs               >= 0.0       && < 0.1
     , velox
+    -- , aeson                 >= 0.9        && < 0.12
+    , binary
+    , bytestring
+    , containers
+    -- , machines
+    -- , machines-process
+    -- , machines-io           >= 0.2        && < 0.3
+    , network               >= 2.6        && < 2.7
+    , msgpack
+    , process
+    , text
+    , unordered-containers  >= 0.2        && < 0.3
+    , vector
   hs-source-dirs:       velox-nvim
   ghc-options:          -Wall
   default-language:     Haskell2010
