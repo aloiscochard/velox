@@ -1,4 +1,4 @@
-name:                   velox
+name:                   sarsi
 version:                0
 license:                Apache-2.0
 license-file:           LICENSE
@@ -18,16 +18,23 @@ library
     Codec.Velox
     Data.Attoparsec.Machine
     Data.Attoparsec.Text.Machine
-    Velox
+    Sarsi
+    Sarsi.Producer
+    Sarsi.Consumer
   build-depends:
       base                  >= 4.6.0.1    && < 5
     , attoparsec            >= 0.12       && < 0.14
     , binary                >= 0.7        && < 0.9
     , bytestring            >= 0.10       && < 0.11
     , containers            >= 0.5        && < 0.6
+    , cryptonite            >= 0.10       && < 0.14
+    , directory             >= 1.2        && < 1.3
+    , filepath              >= 1.4        && < 1.5
     , machines              >= 0.5        && < 0.6
     , machines-process      >= 0.2        && < 0.3
+    , machines-io           >= 0.2        && < 0.3
     , msgpack               >= 1.0        && < 1.1
+    , network               >= 2.6        && < 2.7
     , process               >= 1.1        && < 1.5
     , text                  >= 1.2        && < 1.3
     , vector                >= 0.10       && < 0.12
@@ -36,8 +43,8 @@ executable velox
   main-is:              Main.hs
   build-depends:       
       base
-    , velox
-  hs-source-dirs:       velox
+    , sarsi
+  hs-source-dirs:       sarsi
   ghc-options:          -Wall
   default-language:     Haskell2010
 
@@ -50,20 +57,20 @@ executable velox-nvim
     -- NVIM.Info
   build-depends:       
       base
-    , velox
+    , sarsi
     -- , aeson                 >= 0.9        && < 0.12
     , binary
     , bytestring
     , containers
     -- , machines
     -- , machines-process
-    -- , machines-io           >= 0.2        && < 0.3
-    , network               >= 2.6        && < 2.7
+    -- , machines-io
     , msgpack
+    , network
     , process
     , text
     , unordered-containers  >= 0.2        && < 0.3
     , vector
-  hs-source-dirs:       velox-nvim
+  hs-source-dirs:       sarsi-nvim
   ghc-options:          -Wall
   default-language:     Haskell2010

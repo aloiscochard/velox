@@ -1,4 +1,4 @@
-module Velox where
+module Sarsi.Producer where
 
 import Data.Attoparsec.Text (parseOnly, parseTest, endOfInput, many')
 import Data.Attoparsec.Text.Machine (streamParser)
@@ -11,12 +11,9 @@ import qualified Data.Machine as M
 
 import Codec.GHC.Log (messageParser)
 
-title :: String
-title = "velox"
-
 mainVelox :: IO ()
 mainVelox = do
-  (ec, out, err') <- readCreateProcessWithExitCode (shell "stack build") ""
+  (ec, out, err') <- readCreateProcessWithExitCode (shell "stack --nix build") ""
   -- let err = unlines $ take 23 $ drop (9) $ lines $ err'
   let err = err' -- unlines $ take 6 $ drop (18) $ lines $ err'
   print "ERR:"

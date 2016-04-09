@@ -21,9 +21,9 @@ import qualified Data.Vector as Vector
 data Command = VimCommand [Object] | VimCallFunction Text [Object]
 
 runCommand :: Socket -> Command -> IO Answer
-runCommand sk cmd = do
-  sendAll sk $ toStrict $ runPut $ putRequest $ mkRequest cmd
-  xs <- recv sk 1024
+runCommand sock cmd = do
+  sendAll sock $ toStrict $ runPut $ putRequest $ mkRequest cmd
+  xs <- recv sock 1024
   return . unpack $ runGet getMessage $ fromStrict xs
     where
       unpack (Response _ a) = a
@@ -36,11 +36,11 @@ runCommand sk cmd = do
 
 mainClient :: IO ()
 mainClient = do
-  sk <- socket AF_UNIX Stream defaultProtocol
-  connect sk addr
-  a0 <- runCommand sk $ VimCommand [toObject "echo \"velox: hello world!\""]
+  sock <- socket AF_UNIX Stream defaultProtocol
+  connect sock addr
+  a0 <- runCommand sock $ VimCallFunction (Text.pack "setqflist") [toObject [item], toObject "r"]
   print a0
-  a1 <- runCommand sk $ VimCallFunction (Text.pack "setqflist") [toObject [item], toObject "r"]
+  a1 <- runCommand sock $ VimCommand [toObject "echo \"velox: hello world!\""]
   print a1
   return ()
     where
@@ -50,4 +50,4 @@ mainClient = do
         , ("col", ObjectInt 12)
         , ("type", toObject "W") -- W Warning / E Error
         , ("text", toObject "Hello World") ]
-      addr = SockAddrUnix "/run/user/1000/nvim48dWQe/0"
+      addr = SockAddrUnix "/tmp/nvimH02Kyu/0"

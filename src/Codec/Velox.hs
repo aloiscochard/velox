@@ -10,7 +10,7 @@ import qualified Data.MessagePack.Put as Put
 data Event
   = Start { title :: Text }
   | Finish { errors :: Int, warnings :: Int }
-  | Notify { messages :: Vector Message }
+  | Notify { message :: Message }
 
 getEvent :: Get Event
 getEvent = do
@@ -18,13 +18,13 @@ getEvent = do
   case tpe of
     0 -> Start <$> Get.getStr
     1 -> Finish <$> Get.getInt <*> Get.getInt
-    2 -> Notify <$> Get.getArray getMessage
+    2 -> Notify <$> getMessage
     _ -> fail "unsupported event type"
 
 putEvent :: Event -> Put
 putEvent (Start t) = Put.putInt 0 *> Put.putStr t
 putEvent (Finish es ws) = Put.putInt 1 *> Put.putInt es *> Put.putInt ws
-putEvent (Notify ms) = Put.putInt 2 *> Put.putArray putMessage ms
+putEvent (Notify m) = Put.putInt 2 *> putMessage m
 
 data Message = Message Location Level (Vector Text)
   deriving Show
