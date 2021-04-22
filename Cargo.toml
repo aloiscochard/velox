@@ -1,0 +1,16 @@
+[package]
+name = "velox"
+version = "0.1.0"
+authors = ["Alois Cochard <alois.cochard@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "vlx"
+path = "src/main.rs"
+
+[dependencies]
+colored = "2"
+ctrlc = { version = "3.0", features = ["termination"] }
+gitignore = "1.0"
+notify = "4.0"
+pathdiff = "0.1"

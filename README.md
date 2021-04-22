@@ -1,4 +1,4 @@
-Velox
+velox
 =====
 
 A continuous development automaton.
