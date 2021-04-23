@@ -1,10 +1,12 @@
 extern crate colored;
+extern crate libc;
 
 use colored::*;
+use libc::{kill, SIGTERM};
 use pathdiff::diff_paths;
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -99,13 +101,16 @@ fn main() {
     }
 
     let root = std::env::current_dir().expect("can't fetch current directory from the environment");
-    let title = "vlx".cyan();
+    let title = "velox".cyan();
 
     // TODO Make looping here configurable (so it can could after first trigger)
     while running.load(Ordering::SeqCst) {
         let triggered_at = SystemTime::now();
         let mut child = Command::new("script")
             .args(&["-qec", &cmd, "/dev/null"])
+            .stderr(Stdio::inherit())
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
             .spawn()
             .expect("command failed to start");
 
@@ -129,10 +134,13 @@ fn main() {
         }
 
         match child.try_wait() {
-            _ => {} // NOOP
+            Ok(_) => {} // NOOP
+            Err(_) => unsafe {
+                let _ = kill(child.id() as i32, SIGTERM);
+            },
         }
 
-        match child.kill() {
+        match child.wait() {
             _ => {} // NOOP
         };
 

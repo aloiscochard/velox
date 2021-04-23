@@ -12,5 +12,6 @@ path = "src/main.rs"
 colored = "2"
 ctrlc = { version = "3.0", features = ["termination"] }
 gitignore = "1.0"
+libc = "0.2"
 notify = "4.0"
 pathdiff = "0.1"
